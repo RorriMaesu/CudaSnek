@@ -1658,6 +1658,11 @@
                 window.advancedAIPositionHistory = [];
             }
 
+            // Clear path history to prevent pattern detection from previous games
+            if (window.pathHistory) {
+                window.pathHistory = [];
+            }
+
             // Reset model compilation flag if we're creating a new model
             if (!window.usingSavedModel) {
                 window.modelCompiled = false;
@@ -2297,8 +2302,28 @@
             // Calculate available space after move
             const availableSpace = floodFill(newHead);
 
+            // If available space is too small, this is likely a dead end
+            if (availableSpace < snake.length) {
+                return { valid: false, score: -Infinity };
+            }
+
             // Calculate distance to food
             const distanceToFood = Math.abs(newHead.x - food.x) + Math.abs(newHead.y - food.y);
+
+            // Check if this position has been visited recently
+            const newPosKey = `${newHead.x},${newHead.y}`;
+            let visitedRecently = false;
+            let visitCount = 0;
+
+            if (window.advancedAIPositionHistory) {
+                const recentPositions = window.advancedAIPositionHistory.slice(-30);
+                recentPositions.forEach(pos => {
+                    if (pos === newPosKey) {
+                        visitedRecently = true;
+                        visitCount++;
+                    }
+                });
+            }
 
             // Calculate score based on available space and distance to food
             let score;
@@ -2306,14 +2331,32 @@
             if (loopDetected) {
                 // When a loop is detected, prioritize moves that maximize available space
                 // and don't worry as much about distance to food
-                score = availableSpace * 2 - distanceToFood * 0.1;
+                score = availableSpace * 3 - distanceToFood * 0.1;
+
+                // Heavily penalize recently visited positions when in a loop
+                if (visitedRecently) {
+                    score -= visitCount * 30;
+                }
+
+                // Add a larger random factor to break symmetry when in loops
+                score += Math.random() * 5;
             } else {
                 // Normal scoring
                 score = availableSpace - distanceToFood * 0.5;
+
+                // Slightly penalize recently visited positions
+                if (visitedRecently) {
+                    score -= visitCount * 2;
+                }
+
+                // Add a small random factor to break ties and avoid repetitive patterns
+                score += Math.random() * 0.5;
             }
 
-            // Add a small random factor to break ties and avoid repetitive patterns
-            score += Math.random() * 0.1;
+            // Bonus for moves that lead directly to food
+            if (newHead.x === food.x && newHead.y === food.y) {
+                score += 50;
+            }
 
             return { valid: true, score };
         }
@@ -2439,25 +2482,48 @@
                 window.advancedAIPositionHistory = [];
             }
 
+            // Track path history to detect repeated patterns
+            if (!window.pathHistory) {
+                window.pathHistory = [];
+            }
+
             // Add current position to history
             window.advancedAIPositionHistory.push(posKey);
 
             // Keep history at a reasonable size
-            if (window.advancedAIPositionHistory.length > 100) {
+            if (window.advancedAIPositionHistory.length > 200) { // Increased from 100 to 200
                 window.advancedAIPositionHistory.shift();
             }
 
             // Check for loops (same position visited multiple times recently)
-            const recentPositions = window.advancedAIPositionHistory.slice(-20); // Look at last 20 moves
+            const recentPositions = window.advancedAIPositionHistory.slice(-30); // Look at last 30 moves (increased from 20)
             const positionCounts = {};
             let loopDetected = false;
+            let loopSize = 0;
 
+            // More sophisticated loop detection
             recentPositions.forEach(pos => {
                 positionCounts[pos] = (positionCounts[pos] || 0) + 1;
                 if (positionCounts[pos] > 2) { // If we've been in the same spot 3+ times recently
                     loopDetected = true;
+                    loopSize = Math.max(loopSize, positionCounts[pos]);
                 }
             });
+
+            // Detect pattern-based loops by analyzing the history
+            if (!loopDetected && recentPositions.length >= 10) {
+                // Check for repeating patterns of length 2-10
+                for (let patternLength = 2; patternLength <= 10; patternLength++) {
+                    const lastPattern = recentPositions.slice(-patternLength).join('|');
+                    const previousSection = recentPositions.slice(-patternLength*2, -patternLength).join('|');
+
+                    if (lastPattern === previousSection) {
+                        loopDetected = true;
+                        loopSize = patternLength;
+                        break;
+                    }
+                }
+            }
 
             // Check all four directions
             const directions = [
@@ -2474,7 +2540,27 @@
             const path = findPathAStar(head, food);
             currentPath = path; // Store path for visualization
 
-            // If we found a path to food and it's not empty
+            // Store the current path for pattern detection
+            if (path.length > 0) {
+                const pathSignature = path.map(p => `${p.x},${p.y}`).join('|');
+                window.pathHistory.push(pathSignature);
+
+                // Keep path history at a reasonable size
+                if (window.pathHistory.length > 10) {
+                    window.pathHistory.shift();
+                }
+
+                // Check if we're repeating the same path multiple times
+                const pathCounts = {};
+                window.pathHistory.forEach(p => {
+                    pathCounts[p] = (pathCounts[p] || 0) + 1;
+                    if (pathCounts[p] > 2) { // If we've used the same path 3+ times
+                        loopDetected = true;
+                    }
+                });
+            }
+
+            // If we found a path to food and it's not empty and no loop detected
             if (path.length > 0 && !loopDetected) {
                 // Get the first step in the path
                 const nextStep = path[0];
@@ -2499,6 +2585,49 @@
             // If A* didn't find a good path or we detected a loop, use fallback strategy
             const moveOptions = [];
 
+            // If we're in a loop, try to find an alternative target instead of food
+            let alternativeTarget = null;
+            if (loopDetected) {
+                // Find the farthest empty space from current position
+                let maxDistance = 0;
+                for (let x = 0; x < gridWidth; x++) {
+                    for (let y = 0; y < gridHeight; y++) {
+                        const pos = { x, y };
+                        const posKey = `${x},${y}`;
+
+                        // Skip if it's a snake segment or recently visited
+                        if (isSnakeSegment(pos) || positionCounts[posKey] > 0) {
+                            continue;
+                        }
+
+                        const distance = Math.abs(head.x - x) + Math.abs(head.y - y);
+                        if (distance > maxDistance) {
+                            maxDistance = distance;
+                            alternativeTarget = pos;
+                        }
+                    }
+                }
+
+                // If we found an alternative target, try to find a path to it
+                if (alternativeTarget) {
+                    const altPath = findPathAStar(head, alternativeTarget);
+                    if (altPath.length > 0) {
+                        const nextStep = altPath[0];
+                        for (const dir of directions) {
+                            if (head.x + dir.x === nextStep.x && head.y + dir.y === nextStep.y) {
+                                if (dir.x !== oppositeDirection.x || dir.y !== oppositeDirection.y) {
+                                    const simulation = simulateMove(dir);
+                                    if (simulation.valid) {
+                                        nextDirection = dir;
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Evaluate each possible move
             for (const dir of directions) {
                 // Skip the opposite direction (can't turn 180 degrees)
@@ -2519,13 +2648,19 @@
                 // Penalize moves that lead to recently visited positions
                 let adjustedScore = simulation.score;
                 if (visitCount > 0) {
-                    adjustedScore -= visitCount * 5; // Penalize based on how often we've been there
+                    adjustedScore -= visitCount * 10; // Increased penalty from 5 to 10
                 }
 
                 // If we detected a loop, prioritize breaking out of it
                 if (loopDetected) {
+                    // Stronger penalty for loop size
+                    const loopPenalty = loopSize * 30;
+
                     // Prioritize moves that lead to less visited areas
-                    adjustedScore = simulation.valid ? (100 - (visitCount * 20)) : -Infinity;
+                    adjustedScore = simulation.valid ? (200 - (visitCount * loopPenalty)) : -Infinity;
+
+                    // Add a random factor to break symmetry when in loops
+                    adjustedScore += Math.random() * 50;
                 }
 
                 if (simulation.valid) {
@@ -2542,6 +2677,11 @@
             // Choose the best move if available
             if (moveOptions.length > 0) {
                 nextDirection = moveOptions[0].direction;
+
+                // If we're in a severe loop, occasionally pick the second-best move to break out
+                if (loopDetected && loopSize > 3 && moveOptions.length > 1 && Math.random() < 0.4) {
+                    nextDirection = moveOptions[1].direction;
+                }
             }
             // If no safe moves, just continue in current direction (though we'll likely crash)
         }
