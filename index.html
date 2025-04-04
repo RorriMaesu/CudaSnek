@@ -1578,13 +1578,25 @@
                 explorationRate = Math.max(0.05, 0.2 - (gameCount * 0.01));
             }
 
-            // Default AI to off for new games
+            // Store the current AI state before potentially changing it
+            const wasAIActive = isAIActive;
+
+            // Handle AI state based on game mode
             if (aiLevel !== 'human') {
-                isAIActive = false;
-                toggleAIBtn.textContent = 'Enable AI';
+                // For AI modes, preserve the previous AI state unless this is the first game
+                if (typeof window.gameInitialized === 'undefined') {
+                    // First time initialization - default to AI off
+                    isAIActive = false;
+                    toggleAIBtn.textContent = 'Enable AI';
+                    window.gameInitialized = true;
+                } else {
+                    // Preserve the previous AI state
+                    isAIActive = wasAIActive;
+                    toggleAIBtn.textContent = isAIActive ? 'Disable AI' : 'Enable AI';
+                }
                 toggleAIBtn.disabled = false;
             }
-            // Check if we're in human mode and disable AI if so
+            // In human mode, always disable AI
             else {
                 isAIActive = false;
                 toggleAIBtn.textContent = 'Enable AI';
@@ -3123,6 +3135,12 @@
                 // Default to AI off for new games
                 isAIActive = false;
                 toggleAIBtn.textContent = 'Enable AI';
+            }
+            // Switching between AI modes (not from human mode)
+            else if (previousLevel !== 'human' && aiLevel !== 'human') {
+                // Preserve the current AI state when switching between AI modes
+                // No change to isAIActive
+                toggleAIBtn.textContent = isAIActive ? 'Disable AI' : 'Enable AI';
             }
 
             // Update AI status display
