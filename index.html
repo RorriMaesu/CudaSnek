@@ -2504,6 +2504,11 @@
                 }
 
                 // Visualize Q-values for current position if available
+                // Check if snake is defined and has elements
+                if (!snake || snake.length === 0) {
+                    return; // Exit if snake is not initialized yet
+                }
+
                 const head = snake[0];
                 const currentState = getState(head);
                 const stateKey = getStateKey(currentState);
@@ -2651,6 +2656,11 @@
 
         // Check for collisions
         function checkCollision(position) {
+            // Check if position is defined
+            if (!position) {
+                return false; // Can't check collision for undefined position
+            }
+
             // Check wall collision
             if (
                 position.x < 0 ||
@@ -2659,6 +2669,11 @@
                 position.y >= gridHeight
             ) {
                 return true;
+            }
+
+            // Check if snake is defined
+            if (!snake || !Array.isArray(snake)) {
+                return false; // Can't check self collision if snake is not defined
             }
 
             // Check self collision (skip the tail as it will move)
@@ -3325,6 +3340,20 @@
         function getState(head) {
             // Create a simplified state representation
             // We'll use: food direction, danger in each direction, and loop detection
+
+            // Check if food and head are defined to prevent errors during initialization
+            if (!food || !head) {
+                // Return default state if food or head is not defined yet
+                return {
+                    foodDirX: 0,
+                    foodDirY: 0,
+                    dangerUp: 0,
+                    dangerRight: 0,
+                    dangerDown: 0,
+                    dangerLeft: 0,
+                    loopDetected: 0
+                };
+            }
 
             const foodDir = {
                 x: Math.sign(food.x - head.x), // -1, 0, or 1
@@ -4403,9 +4432,14 @@
             gridWidth = canvas.width / gridSize;
             gridHeight = canvas.height / gridSize;
 
-            // Redraw the game if it's running
-            if (typeof draw === 'function') {
-                draw();
+            // Redraw the game if it's running and game state is initialized
+            if (typeof draw === 'function' && gameStarted) {
+                try {
+                    draw();
+                } catch (error) {
+                    console.error('Error in draw during resize:', error);
+                    // Don't let drawing errors crash the game
+                }
             }
 
             // Reposition touch controls if needed
