@@ -442,6 +442,31 @@
                 box-shadow: 0 0 0 0 rgba(74, 93, 231, 0);
             }
         }
+
+        /* AI toggle button styles */
+        #toggleAIBtn {
+            transition: all 0.3s ease;
+        }
+
+        #toggleAIBtn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* AI toggle animation */
+        .ai-toggle-animation {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            70% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -1399,8 +1424,14 @@
                 explorationRate = Math.max(0.05, 0.2 - (gameCount * 0.01));
             }
 
+            // Default AI to off for new games
+            if (aiLevel !== 'human') {
+                isAIActive = false;
+                toggleAIBtn.textContent = 'Enable AI';
+                toggleAIBtn.disabled = false;
+            }
             // Check if we're in human mode and disable AI if so
-            if (aiLevel === 'human') {
+            else {
                 isAIActive = false;
                 toggleAIBtn.textContent = 'Enable AI';
                 toggleAIBtn.disabled = true;
@@ -2662,8 +2693,20 @@
                 isAIActive = false;
                 showTooltip('AI control is disabled in Human Player mode', 2000);
             } else {
-                isAIActive = !isAIActive;
-                toggleAIBtn.textContent = isAIActive ? 'Disable AI' : 'Enable AI';
+                // Toggle AI state
+                const newState = !isAIActive;
+                isAIActive = newState;
+                toggleAIBtn.textContent = newState ? 'Disable AI' : 'Enable AI';
+
+                // Show animation
+                animateAIToggle(newState);
+
+                // Show appropriate message
+                if (newState) {
+                    showTooltip(`${aiLevel.charAt(0).toUpperCase() + aiLevel.slice(1)} AI activated!`, 2000);
+                } else {
+                    showTooltip('AI deactivated - use keyboard to control', 2000);
+                }
             }
 
             updateAIStatus();
@@ -2684,6 +2727,27 @@
 
                 // Update toggle button text to reflect AI is off
                 toggleAIBtn.textContent = 'Enable AI';
+
+                // Add animation to show AI is disabled
+                animateAIToggle(false);
+            }
+            // Coming from human mode to any AI mode
+            else if (previousLevel === 'human') {
+                // Automatically enable AI when switching from human mode
+                isAIActive = true;
+                toggleAIBtn.textContent = 'Disable AI';
+
+                // Add animation to show AI is enabled
+                animateAIToggle(true);
+
+                // Show tooltip about AI being enabled
+                showTooltip(`${aiLevel.charAt(0).toUpperCase() + aiLevel.slice(1)} AI activated!`, 2000);
+            }
+            // Default for new game - AI starts disabled
+            else if (previousLevel === null || previousLevel === undefined) {
+                // Default to AI off for new games
+                isAIActive = false;
+                toggleAIBtn.textContent = 'Enable AI';
             }
 
             // Update AI status display
@@ -2696,6 +2760,66 @@
 
             // Log the mode change
             console.log(`Game mode changed from ${previousLevel} to ${aiLevel}. AI active: ${isAIActive}`);
+        }
+
+        // Function to animate AI toggle with visual effects
+        function animateAIToggle(enabled) {
+            // Create animation overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'ai-toggle-animation';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.pointerEvents = 'none';
+            overlay.style.zIndex = '999';
+            overlay.style.backgroundColor = enabled ? 'rgba(74, 93, 231, 0.2)' : 'rgba(255, 94, 94, 0.2)';
+            overlay.style.transition = 'opacity 0.5s';
+            document.body.appendChild(overlay);
+
+            // Create icon
+            const icon = document.createElement('div');
+            icon.style.position = 'fixed';
+            icon.style.top = '50%';
+            icon.style.left = '50%';
+            icon.style.transform = 'translate(-50%, -50%)';
+            icon.style.fontSize = '80px';
+            icon.style.color = enabled ? '#4a5de7' : '#ff5e5e';
+            icon.style.textShadow = '0 0 20px ' + (enabled ? 'rgba(74, 93, 231, 0.7)' : 'rgba(255, 94, 94, 0.7)');
+            icon.innerHTML = enabled ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+            icon.style.opacity = '0';
+            icon.style.transition = 'all 0.5s';
+            overlay.appendChild(icon);
+
+            // Highlight the toggle button
+            toggleAIBtn.style.transition = 'all 0.3s';
+            toggleAIBtn.style.boxShadow = `0 0 15px ${enabled ? 'rgba(74, 93, 231, 0.7)' : 'rgba(255, 94, 94, 0.7)'}`;
+            toggleAIBtn.style.backgroundColor = enabled ? '#4a5de7' : '#ff5e5e';
+
+            // Animate
+            setTimeout(() => {
+                icon.style.opacity = '1';
+                icon.style.transform = 'translate(-50%, -50%) scale(1.2)';
+            }, 100);
+
+            // Remove animation
+            setTimeout(() => {
+                icon.style.opacity = '0';
+                icon.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                overlay.style.opacity = '0';
+
+                // Reset button style
+                setTimeout(() => {
+                    toggleAIBtn.style.boxShadow = '';
+                    toggleAIBtn.style.backgroundColor = '';
+                }, 300);
+
+                // Remove elements
+                setTimeout(() => {
+                    document.body.removeChild(overlay);
+                }, 500);
+            }, 1500);
         }
 
         // Function to show temporary tooltip
