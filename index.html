@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>AI Snake Game</title>
     <!-- Force hardware acceleration for WebGL -->
     <style>
@@ -125,6 +125,42 @@
         }
 
         /* Media queries for responsive design */
+        @media (max-width: 1200px) {
+            .training-controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .training-controls button,
+            .training-controls input,
+            .training-controls select {
+                margin: 5px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 5px 0;
+            }
+
+            h1 {
+                font-size: 28px;
+                margin: 10px 0;
+            }
+
+            #gameCanvas {
+                width: min(500px, 95vw);
+                height: min(500px, 95vw);
+            }
+
+            .controls, .stats {
+                flex-wrap: wrap;
+                justify-content: center;
+                max-width: 100%;
+                padding: 5px;
+            }
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: 10px 0;
@@ -134,14 +170,12 @@
 
             h1 {
                 font-size: 24px;
-                margin: 10px 0;
+                margin: 8px 0;
             }
 
             #gameCanvas {
-                width: 90vw;
-                height: 90vw;
-                max-width: 400px;
-                max-height: 400px;
+                width: min(400px, 90vw);
+                height: min(400px, 90vw);
             }
 
             .controls, .training-controls, .stats {
@@ -149,6 +183,14 @@
                 justify-content: center;
                 max-width: 100%;
                 padding: 5px;
+                gap: 5px;
+            }
+
+            .controls button,
+            .controls select {
+                padding: 8px 12px;
+                font-size: 14px;
+                margin: 3px;
             }
 
             .training-controls {
@@ -168,17 +210,123 @@
                 justify-content: center;
                 gap: 5px;
             }
+
+            .stat-box {
+                padding: 5px 10px;
+                margin: 3px;
+                min-width: 70px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px 0;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin: 5px 0;
+            }
+
+            #gameCanvas {
+                width: min(350px, 95vw);
+                height: min(350px, 95vw);
+            }
+
+            .controls button,
+            .controls select {
+                padding: 6px 10px;
+                font-size: 13px;
+                margin: 2px;
+            }
+
+            .stat-box {
+                padding: 4px 8px;
+                margin: 2px;
+                min-width: 60px;
+                font-size: 12px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+
+            .touch-controls {
+                bottom: 10px;
+            }
+
+            .touch-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+
+        /* Landscape mode for mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: flex-start;
+                padding: 5px;
+            }
+
+            h1 {
+                font-size: 18px;
+                margin: 5px 0;
+                width: 100%;
+                text-align: center;
+            }
+
+            #gameCanvas {
+                width: min(350px, 50vh);
+                height: min(350px, 50vh);
+                margin: 0 10px;
+            }
+
+            .game-container {
+                margin: 0;
+                flex: 0 0 auto;
+            }
+
+            .controls, .stats {
+                flex-direction: column;
+                margin: 0 5px;
+                max-width: 150px;
+            }
+
+            .touch-controls {
+                position: fixed;
+                right: 10px;
+                bottom: 50%;
+                transform: translateY(50%);
+                flex-direction: column;
+                width: auto;
+            }
         }
 
         .game-container {
             position: relative;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
         }
 
         canvas {
             background: #0f0f1a;
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            max-height: 500px;
+            aspect-ratio: 1 / 1;
+            object-fit: contain;
+            border: 2px solid var(--primary-color);
         }
 
         .controls {
@@ -1832,6 +1980,9 @@
 
         // Initialize the game
         async function initGame() {
+            // Ensure canvas is properly sized for the device
+            resizeCanvas();
+
             // Reset game state
             snake = [{ x: 5, y: 5 }];
             score = 0;
@@ -3792,11 +3943,47 @@
                    (navigator.msMaxTouchPoints > 0);
         }
 
+        // Function to handle responsive canvas sizing
+        function resizeCanvas() {
+            const canvas = document.getElementById('gameCanvas');
+            const gameContainer = document.querySelector('.game-container');
+
+            // Get the available width for the canvas
+            let size;
+
+            if (window.innerWidth <= 480) {
+                size = Math.min(350, window.innerWidth * 0.95);
+            } else if (window.innerWidth <= 768) {
+                size = Math.min(400, window.innerWidth * 0.9);
+            } else if (window.innerWidth <= 900) {
+                size = Math.min(500, window.innerWidth * 0.95);
+            } else {
+                size = 500; // Default size
+            }
+
+            // Handle landscape mode
+            if (window.innerHeight <= 500 && window.innerWidth > window.innerHeight) {
+                size = Math.min(350, window.innerHeight * 0.5);
+            }
+
+            // Update canvas size while maintaining aspect ratio
+            canvas.width = size;
+            canvas.height = size;
+
+            // Redraw the game if it's running
+            if (typeof draw === 'function' && isGameRunning) {
+                draw();
+            }
+        }
+
         // Setup mobile UI and touch controls
         function setupMobileUI() {
             const isMobile = isMobileDevice();
             const mobileSettingsToggle = document.getElementById('mobileSettingsToggle');
             const trainingControls = document.querySelector('.training-controls');
+
+            // Resize canvas for any device (mobile or desktop)
+            resizeCanvas();
 
             // Add mobile class to body if on mobile device
             if (isMobile) {
@@ -3940,7 +4127,19 @@
 
         // Initialize mobile UI on page load
         window.addEventListener('load', setupMobileUI);
-        window.addEventListener('resize', setupMobileUI);
+
+        // Add resize event listener for responsive canvas
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+
+            // Check if we need to update mobile UI
+            const wasMobile = document.body.classList.contains('mobile-device');
+            const isMobile = isMobileDevice();
+
+            if (wasMobile !== isMobile) {
+                setupMobileUI();
+            }
+        });
 
         // Instruction system
         document.addEventListener('DOMContentLoaded', function() {
