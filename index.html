@@ -3646,9 +3646,11 @@
                 if (!isAIActive) {
                     aiStatus.textContent = 'AI: Inactive';
                 } else if (aiLevel === 'deep') {
-                    const backend = tf.getBackend() || 'cpu';
-                    const modelStatus = window.usingSavedModel ? '💾 SAVED' : 'NEW';
-                    aiStatus.textContent = `AI: Smart (${backend.toUpperCase()}, ${modelStatus}, Training: ${replayMemory.length} samples)`;
+                    // Check if we have a saved model
+                    const modelStatus = localStorage.getItem('simplified-deep-ai-model') ? '💾 SAVED' : 'NEW';
+                    aiStatus.textContent = `AI: Smart (JS, ${modelStatus})`;
+                } else if (aiLevel === 'advanced') {
+                    aiStatus.textContent = 'AI: Advanced';
                 } else {
                     aiStatus.textContent = 'AI: Simple';
                 }
@@ -4010,17 +4012,24 @@
             fileInput.click();
         });
 
-        // Initialize the application with improved error handling
+        // Initialize the application with simplified deep learning
         async function initializeApp() {
             // Set default mode to human
             aiLevel = 'human';
             aiLevelSelect.value = 'human';
 
-            // Check if TensorFlow.js is loaded
-            if (window.tfLoadingStatus === 'error' || typeof tf === 'undefined') {
-                console.error('TensorFlow.js not loaded. Deep learning features will not work.');
-                showTooltip('TensorFlow.js could not be loaded. Deep learning features will not be available.', 5000);
-
+            try {
+                // Initialize the simplified deep AI
+                window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                // Try to load saved model
+                const loaded = window.simplifiedDeepAI.loadModel();
+                if (loaded) {
+                    console.log('Loaded simplified deep AI model from localStorage');
+                } else {
+                    console.log('Created new simplified deep AI model');
+                }
+            } catch (error) {
+                console.error('Error initializing simplified deep AI:', error);
                 // Disable deep learning option in the dropdown
                 const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
                 if (deepOption) {
@@ -4028,205 +4037,20 @@
                     deepOption.text += ' (Not Available)';
                 }
 
-                // Default to advanced AI if TensorFlow is not available and user wants to use AI
+                // Default to advanced AI if simplified deep AI is not available
                 aiLevel = 'advanced';
                 aiLevelSelect.value = 'advanced';
-
-                // Initialize with basic AI
-                await initGame();
-                updateAIStatus();
-                startGame();
-                return;
             }
 
-            // Handle the CPU backend whereImpl error
-            try {
-                // Try a simple tensor operation to check if the CPU backend works
-                const testTensor = tf.tensor1d([1, 2, 3]);
-                await testTensor.data();
-                testTensor.dispose();
-            } catch (cpuError) {
-                if (cpuError.message && cpuError.message.includes('whereImpl')) {
-                    console.error('CPU backend error:', cpuError);
-                    showTooltip('TensorFlow.js CPU backend error. Deep learning features will not be available.', 5000);
+            // Update GPU status in UI
+            trainingStatus.textContent = 'Using simplified deep learning (JavaScript)';
+            gpuValue.textContent = 'JavaScript';
+            gpuValue.style.color = '#4CAF50'; // Green
 
-                    // Disable deep learning option in the dropdown
-                    const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
-                    if (deepOption) {
-                        deepOption.disabled = true;
-                        deepOption.text += ' (Not Available)';
-                    }
-
-                    // Default to advanced AI
-                    aiLevel = 'advanced';
-                    aiLevelSelect.value = 'advanced';
-
-                    // Initialize with basic AI
-                    await initGame();
-                    updateAIStatus();
-                    startGame();
-                    return;
-                }
-            }
-
-            // Wait for TensorFlow.js to finish loading if it's still in progress
-            if (window.tfLoadingStatus === 'loading') {
-                console.log('Waiting for TensorFlow.js to finish loading...');
-                showTooltip('Initializing TensorFlow.js...', 2000);
-
-                // Wait up to 3 seconds for loading to complete
-                for (let i = 0; i < 30; i++) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    if (window.tfLoadingStatus === 'loaded') {
-                        console.log('TensorFlow.js finished loading');
-                        break;
-                    }
-                    if (i === 29 || window.tfLoadingStatus === 'error') {
-                        console.error('TensorFlow.js loading timed out or failed');
-                        showTooltip('TensorFlow.js loading failed - deep learning disabled', 3000);
-
-                        // Disable deep learning option in the dropdown
-                        const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
-                        if (deepOption) {
-                            deepOption.disabled = true;
-                            deepOption.text += ' (Not Available)';
-                        }
-
-                        // Default to advanced AI
-                        aiLevel = 'advanced';
-                        aiLevelSelect.value = 'advanced';
-                        await initGame();
-                        updateAIStatus();
-                        startGame();
-                        return;
-                    }
-                }
-            }
-
-            console.log('TensorFlow.js loaded successfully. Using backend:', tf.getBackend());
-
-            // Initialize TensorFlow.js with improved error handling
-            try {
-                // First try to set CPU backend directly (more reliable)
-                try {
-                    await tf.setBackend('cpu');
-                    console.log('Successfully set CPU backend as initial backend');
-                } catch (cpuError) {
-                    console.warn('Failed to set CPU backend:', cpuError);
-                }
-
-                // Force TensorFlow to initialize
-                await tf.ready();
-                console.log('TensorFlow.js initialized successfully');
-
-                // Get current backend
-                const currentBackend = tf.getBackend();
-                console.log('Current TensorFlow backend:', currentBackend);
-
-                // Try WebGL only if we're not already using it
-                if (currentBackend !== 'webgl') {
-                    try {
-                        // Try to switch to WebGL
-                        await tf.setBackend('webgl');
-                        console.log('Successfully switched to WebGL backend');
-
-                        // Verify WebGL is working with a test operation
-                        const testTensor = tf.tensor2d([[1, 2], [3, 4]]);
-                        await testTensor.square().data();
-                        testTensor.dispose();
-
-                        console.log('WebGL test successful');
-                    } catch (webglError) {
-                        console.warn('WebGL operations failed, using CPU:', webglError);
-
-                        // Make sure we're using CPU
-                        try {
-                            await tf.setBackend('cpu');
-                            console.log('Explicitly set CPU backend after WebGL failure');
-                        } catch (e) {
-                            console.error('Failed to set CPU backend after WebGL failure:', e);
-                        }
-
-                        // Show a message to the user
-                        trainingStatus.textContent = 'GPU not available - using CPU (slower)';
-                        gpuValue.textContent = 'Not Available';
-                        gpuValue.style.color = '#f44336'; // Red
-
-                        // Show a tooltip explaining the issue
-                        showTooltip('WebGL not working - using CPU instead. Training will be slower.', 5000);
-                    }
-                }
-
-                // Final check of which backend we're using
-                const finalBackend = tf.getBackend();
-                console.log('Final TensorFlow backend:', finalBackend);
-
-                // Update UI based on backend
-                if (finalBackend === 'webgl') {
-                    trainingStatus.textContent = 'GPU acceleration active';
-                    gpuValue.textContent = 'Active';
-                    gpuValue.style.color = '#4CAF50'; // Green
-                } else {
-                    trainingStatus.textContent = 'Using CPU (GPU not available)';
-                    gpuValue.textContent = 'CPU Only';
-                    gpuValue.style.color = '#f44336'; // Red
-                }
-
-                // Initialize the game with deep learning
-                if (aiLevel === 'deep') {
-                    trainingStatus.textContent = 'Initializing GPU detection...';
-
-                    // Try to load saved model first, create new one if loading fails
-                    if (!model) {
-                        try {
-                            // Attempt to load model from IndexedDB
-                            model = await tf.loadLayersModel('indexeddb://snake-ai-model');
-
-                            // Compile the loaded model - this is necessary for training
-                            model.compile({
-                                optimizer: tf.train.adam(0.001),
-                                loss: 'meanSquaredError'
-                            });
-
-                            // Set flag to indicate model is compiled
-                            window.modelCompiled = true;
-
-                            window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                            trainingStatus.textContent = 'Loaded and compiled saved model from browser storage';
-                            console.log('Successfully loaded and compiled saved model');
-                        } catch (err) {
-                            console.log('No saved model found, creating new model:', err);
-                            model = await createModel();
-                            trainingStatus.textContent = 'Created new model (no saved model found)';
-                        }
-                    }
-
-                    // Check GPU status
-                    await updateGpuStatus();
-
-                    // Initialize the game
-                    await initGame();
-                    updateAIStatus();
-                    await startGame();
-                } else {
-                    // Initialize with other AI types
-                    await initGame();
-                    updateAIStatus();
-                    await startGame();
-                }
-            } catch (error) {
-                console.error('Error initializing TensorFlow.js:', error);
-                trainingStatus.textContent = 'Error initializing - using fallback AI';
-
-                // Fall back to advanced AI
-                aiLevel = 'advanced';
-                aiLevelSelect.value = 'advanced';
-
-                // Initialize with fallback
-                await initGame();
-                updateAIStatus();
-                await startGame();
-            }
+            // Initialize the game
+            await initGame();
+            updateAIStatus();
+            startGame();
         }
 
 // Mobile detection and UI code follows
