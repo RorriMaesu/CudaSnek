@@ -11,6 +11,8 @@ A self-playing Snake game that uses deep reinforcement learning with TensorFlow.
 - Turbo training mode for maximum GPU utilization
 - Model export/import for sharing trained models
 - GPU performance monitoring
+- Interactive tooltips and animated instructions
+- Dummy-proof interface with visual cues
 
 ## How to Use
 

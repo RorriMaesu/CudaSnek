@@ -14,7 +14,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.18.0/dist/tf-backend-webgl.min.js"></script>
     <!-- TensorFlow.js CPU backend as fallback -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@3.18.0/dist/tf-backend-cpu.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Animate.css for animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
         body {
             margin: 0;
             padding: 0;
@@ -24,9 +30,10 @@
             align-items: center;
             height: 100vh;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            font-family: 'Arial', sans-serif;
+            font-family: 'Poppins', sans-serif;
             color: #fff;
             overflow: hidden;
+            position: relative;
         }
 
         .game-container {
@@ -192,6 +199,219 @@
 
         .game-over button:hover {
             background: #ff7777;
+        }
+
+        /* Instruction styles */
+        .instruction-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .instruction-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .instruction-content {
+            background: linear-gradient(135deg, #2a2a4e, #26315e);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #4a5de7;
+        }
+
+        .instruction-content h2 {
+            color: #4a5de7;
+            margin-top: 0;
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(74, 93, 231, 0.5);
+        }
+
+        .instruction-content p {
+            margin-bottom: 15px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .instruction-content ul {
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instruction-content li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .instruction-content li i {
+            color: #4a5de7;
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        .instruction-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .instruction-close:hover {
+            transform: scale(1.2);
+            color: #ff5e5e;
+        }
+
+        .instruction-button {
+            background: #4a5de7;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(74, 93, 231, 0.4);
+            margin: 0 auto;
+        }
+
+        .instruction-button:hover {
+            background: #3a4ed7;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(74, 93, 231, 0.6);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(74, 93, 231, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            max-width: 250px;
+            text-align: center;
+            transform: translateY(10px);
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: rgba(74, 93, 231, 0.9) transparent transparent;
+        }
+
+        .pulse-button {
+            position: relative;
+        }
+
+        .pulse-button::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            background: rgba(74, 93, 231, 0.4);
+            border-radius: 50px;
+            z-index: -1;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0;
+            }
+        }
+
+        .help-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #4a5de7;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(74, 93, 231, 0.4);
+            z-index: 100;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .help-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(74, 93, 231, 0.6);
+        }
+
+        .highlight {
+            position: relative;
+            animation: highlight-pulse 2s infinite;
+        }
+
+        @keyframes highlight-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(74, 93, 231, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(74, 93, 231, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(74, 93, 231, 0);
+            }
         }
     </style>
 </head>
@@ -2565,6 +2785,122 @@
             initGame();
             updateAIStatus();
             startGame();
+        });
+
+        // Instruction system
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create help button
+            const helpButton = document.createElement('button');
+            helpButton.className = 'help-button pulse-button';
+            helpButton.innerHTML = '<i class="fas fa-question"></i>';
+            document.body.appendChild(helpButton);
+
+            // Create instruction overlay
+            const instructionOverlay = document.createElement('div');
+            instructionOverlay.className = 'instruction-overlay';
+            instructionOverlay.innerHTML = `
+                <div class="instruction-content animate__animated animate__fadeInUp">
+                    <button class="instruction-close"><i class="fas fa-times"></i></button>
+                    <h2><i class="fas fa-brain"></i> CudaSnek Instructions</h2>
+
+                    <p>Welcome to CudaSnek - a GPU-accelerated Snake AI that learns and gets smarter as it plays!</p>
+
+                    <h3><i class="fas fa-gamepad"></i> Game Controls</h3>
+                    <ul>
+                        <li><i class="fas fa-play"></i> <strong>Resume Game</strong> - Start or resume the game</li>
+                        <li><i class="fas fa-robot"></i> <strong>Toggle AI</strong> - Turn AI control on/off</li>
+                        <li><i class="fas fa-redo"></i> <strong>Reset Game</strong> - Start a new game</li>
+                        <li><i class="fas fa-graduation-cap"></i> <strong>Deep Learning</strong> - Select AI mode from dropdown</li>
+                    </ul>
+
+                    <h3><i class="fas fa-cogs"></i> Training Options</h3>
+                    <ul>
+                        <li><i class="fas fa-microchip"></i> <strong>Train on GPU</strong> - Train the AI using your GPU</li>
+                        <li><i class="fas fa-tachometer-alt"></i> <strong>Episodes</strong> - Number of games to train (1000 recommended)</li>
+                        <li><i class="fas fa-bolt"></i> <strong>Turbo Mode</strong> - Train faster without visualization</li>
+                        <li><i class="fas fa-save"></i> <strong>Save/Load Model</strong> - Save your trained model locally</li>
+                        <li><i class="fas fa-file-export"></i> <strong>Export/Import</strong> - Share your model with others</li>
+                    </ul>
+
+                    <h3><i class="fas fa-chart-line"></i> Performance Metrics</h3>
+                    <ul>
+                        <li><i class="fas fa-microchip"></i> <strong>GPU</strong> - Shows if your NVIDIA GPU is being used</li>
+                        <li><i class="fas fa-brain"></i> <strong>Avg. Score</strong> - Average score across training</li>
+                        <li><i class="fas fa-trophy"></i> <strong>Max Score</strong> - Highest score achieved</li>
+                        <li><i class="fas fa-chart-bar"></i> <strong>Performance</strong> - Training speed in episodes/second</li>
+                    </ul>
+
+                    <button class="instruction-button" id="closeInstructions">
+                        <i class="fas fa-check"></i> Got it!
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(instructionOverlay);
+
+            // Show instructions on first load
+            setTimeout(() => {
+                instructionOverlay.classList.add('active');
+            }, 1000);
+
+            // Close instructions
+            document.querySelector('.instruction-close').addEventListener('click', () => {
+                instructionOverlay.classList.remove('active');
+            });
+
+            document.getElementById('closeInstructions').addEventListener('click', () => {
+                instructionOverlay.classList.remove('active');
+            });
+
+            // Show instructions when help button is clicked
+            helpButton.addEventListener('click', () => {
+                instructionOverlay.classList.add('active');
+            });
+
+            // Create tooltips for all controls
+            const tooltipElements = [
+                { element: document.getElementById('startBtn'), text: 'Start or pause the game' },
+                { element: document.getElementById('toggleAIBtn'), text: 'Let AI control the snake' },
+                { element: document.getElementById('resetBtn'), text: 'Reset the game' },
+                { element: document.getElementById('aiLevelSelect'), text: 'Choose AI algorithm - Deep Learning uses your GPU' },
+                { element: document.getElementById('trainBtn'), text: 'Train the AI using your GPU' },
+                { element: document.getElementById('trainEpisodes'), text: 'Number of games to train (higher = better learning)' },
+                { element: document.getElementById('trainSpeed'), text: 'Turbo mode trains faster without visualization' },
+                { element: document.getElementById('saveModelBtn'), text: 'Save your trained model to browser storage' },
+                { element: document.getElementById('loadModelBtn'), text: 'Load a previously saved model' },
+                { element: document.getElementById('exportModelBtn'), text: 'Export model to share with others' },
+                { element: document.getElementById('importModelBtn'), text: 'Import a model from someone else' }
+            ];
+
+            // Create tooltip element
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            document.body.appendChild(tooltip);
+
+            // Add tooltip functionality
+            tooltipElements.forEach(item => {
+                if (item.element) {
+                    item.element.classList.add('highlight');
+
+                    item.element.addEventListener('mouseenter', () => {
+                        const rect = item.element.getBoundingClientRect();
+                        tooltip.textContent = item.text;
+                        tooltip.style.left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2) + 'px';
+                        tooltip.style.top = rect.top - tooltip.offsetHeight - 10 + 'px';
+                        tooltip.classList.add('visible');
+                    });
+
+                    item.element.addEventListener('mouseleave', () => {
+                        tooltip.classList.remove('visible');
+                    });
+                }
+            });
+
+            // Remove highlight after 10 seconds
+            setTimeout(() => {
+                document.querySelectorAll('.highlight').forEach(el => {
+                    el.classList.remove('highlight');
+                });
+            }, 10000);
         });
     </script>
 </body>
