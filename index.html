@@ -1144,8 +1144,9 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gridSize = 20;
-        const gridWidth = canvas.width / gridSize;
-        const gridHeight = canvas.height / gridSize;
+        // Make these variables (not constants) so they can be updated when canvas size changes
+        let gridWidth = canvas.width / gridSize;
+        let gridHeight = canvas.height / gridSize;
 
         // UI elements
         const startBtn = document.getElementById('startBtn');
@@ -4081,9 +4082,9 @@
             canvas.width = size;
             canvas.height = size;
 
-            // Update grid size based on canvas dimensions
-            gridWidth = Math.floor(size / 20);
-            gridHeight = Math.floor(size / 20);
+            // Update gridWidth and gridHeight based on new canvas dimensions
+            gridWidth = canvas.width / gridSize;
+            gridHeight = canvas.height / gridSize;
 
             // Redraw the game if it's running
             if (typeof draw === 'function') {
