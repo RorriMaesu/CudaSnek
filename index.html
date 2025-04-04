@@ -2342,16 +2342,21 @@
                     // Apply a positive reward for actions that led to food
                     qTable[stateKey][lastAction] += 1.0;
                 }
-                // For deep learning AI: add experience to replay memory
-                else if (aiLevel === "deep" && lastState && lastAction !== null) {
-                    // Get next state
-                    const nextState = getDeepState(head);
-                    // Add positive reward experience
-                    addExperience(lastState, lastAction, 1.0, nextState, false);
-                    // Train on batch occasionally
-                    if (replayMemory.length >= miniBatchSize && Math.random() < 0.1) {
-                        trainOnBatch().catch(err => console.error('Training error:', err));
-                    }
+                // For deep learning AI: reward the action that led to food
+                else if (aiLevel === "deep" && window.simplifiedDeepAI) {
+                    // Get current state
+                    const state = getState(head);
+                    state.headX = head.x;
+                    state.headY = head.y;
+                    state.foodX = food.x;
+                    state.foodY = food.y;
+
+                    // Notify the deep AI about food eaten
+                    window.simplifiedDeepAI.handleFoodEaten(state);
+
+                    // Update training status
+                    const stats = window.simplifiedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
                 }
 
                 // Increase speed every 5 food items
@@ -2674,16 +2679,22 @@
                 // Apply a large negative reward for actions that led to death
                 qTable[stateKey][lastAction] -= 1.0;
             }
-            // For deep learning AI: add negative experience to replay memory
-            else if (aiLevel === "deep" && lastState && lastAction !== null) {
-                // Create a dummy next state (doesn't matter for terminal states)
-                const nextState = lastState;
-                // Add negative reward experience with terminal state
-                addExperience(lastState, lastAction, -1.0, nextState, true);
-                // Train on batch to learn from this experience
-                if (replayMemory.length >= miniBatchSize) {
-                    trainOnBatch().catch(err => console.error('Training error:', err));
-                }
+            // For deep learning AI: notify about game over
+            else if (aiLevel === "deep" && window.simplifiedDeepAI) {
+                // Get final state
+                const head = snake[0];
+                const state = getState(head);
+                state.headX = head.x;
+                state.headY = head.y;
+                state.foodX = food.x;
+                state.foodY = food.y;
+
+                // Notify the deep AI about game over
+                window.simplifiedDeepAI.handleGameOver(state);
+
+                // Update training status
+                const stats = window.simplifiedDeepAI.getTrainingStats();
+                trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
             }
 
             // Increment game count for learning
@@ -3646,9 +3657,17 @@
                 if (!isAIActive) {
                     aiStatus.textContent = 'AI: Inactive';
                 } else if (aiLevel === 'deep') {
-                    // Check if we have a saved model
+                    // Check if we have a saved model and get training stats
                     const modelStatus = localStorage.getItem('simplified-deep-ai-model') ? '💾 SAVED' : 'NEW';
-                    aiStatus.textContent = `AI: Smart (JS, ${modelStatus})`;
+
+                    // Get training statistics if available
+                    let trainingInfo = '';
+                    if (window.simplifiedDeepAI) {
+                        const stats = window.simplifiedDeepAI.getTrainingStats();
+                        trainingInfo = ` (Training: ${stats.trainingCount}, Memory: ${stats.memorySize})`;
+                    }
+
+                    aiStatus.textContent = `AI: Smart (JS, ${modelStatus})${trainingInfo}`;
                 } else if (aiLevel === 'advanced') {
                     aiStatus.textContent = 'AI: Advanced';
                 } else {
