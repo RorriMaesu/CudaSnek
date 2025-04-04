@@ -742,26 +742,31 @@
                 // First try to explicitly set WebGL backend if GPU was detected
                 if (gpuDetected && availableBackends.includes('webgl')) {
                     console.log('Setting WebGL backend for GPU acceleration');
-                    await tf.setBackend('webgl');
+                    try {
+                        await tf.setBackend('webgl');
 
-                    // Configure WebGL for better performance
-                    const backend = tf.backend();
-                    if (backend && typeof backend.setFlags === 'function') {
-                        backend.setFlags({
-                            'WEBGL_PACK': true,
-                            'WEBGL_FORCE_F16_TEXTURES': false,
-                            'WEBGL_CPU_FORWARD': false,
-                            'WEBGL_FLUSH_THRESHOLD': 1
-                        });
-                    }
+                        // Configure WebGL for better performance
+                        const backend = tf.backend();
+                        if (backend && typeof backend.setFlags === 'function') {
+                            backend.setFlags({
+                                'WEBGL_PACK': true,
+                                'WEBGL_FORCE_F16_TEXTURES': false,
+                                'WEBGL_CPU_FORWARD': false,
+                                'WEBGL_FLUSH_THRESHOLD': 1
+                            });
+                        }
 
-                    // Verify backend is actually WebGL
-                    if (tf.getBackend() === 'webgl') {
-                        console.log('Successfully using WebGL backend');
-                        trainingStatus.textContent = `GPU: ${renderer}`;
-                        gpuValue.textContent = `Active (${renderer})`;
-                        gpuValue.style.color = '#4CAF50'; // Green
-                        return true;
+                        // Verify backend is actually WebGL
+                        if (tf.getBackend() === 'webgl') {
+                            console.log('Successfully using WebGL backend');
+                            trainingStatus.textContent = `GPU: ${renderer}`;
+                            gpuValue.textContent = `Active (${renderer})`;
+                            gpuValue.style.color = '#4CAF50'; // Green
+                            return true;
+                        }
+                    } catch (webglError) {
+                        console.warn('WebGL initialization failed, falling back to CPU:', webglError);
+                        // Continue to CPU fallback
                     }
                 }
 
@@ -784,8 +789,9 @@
             // Initialize TensorFlow with GPU support
             await initializeTensorFlow();
 
-            // Set flag to indicate we're using a new model, not a saved one
+            // Set flags to indicate we're using a new model, not a saved one
             window.usingSavedModel = false;
+            window.modelCompiled = false;
 
             // Create the model
             let model;
@@ -818,6 +824,9 @@
                     optimizer: tf.train.adam(0.001),
                     loss: 'meanSquaredError'
                 });
+
+                // Set flag to indicate model is compiled
+                window.modelCompiled = true;
 
                 console.log('Neural network model created and compiled successfully');
 
@@ -936,12 +945,13 @@
                 }
 
                 // Ensure model is compiled
-                if (!model.compiled) {
+                if (!window.modelCompiled) {
                     console.log('Model not compiled, compiling now...');
                     model.compile({
                         optimizer: tf.train.adam(0.001),
                         loss: 'meanSquaredError'
                     });
+                    window.modelCompiled = true;
                 }
 
                 // Sample random batch from replay memory
@@ -1544,6 +1554,11 @@
             // Clear any AI position history to prevent loop detection from previous games
             if (window.advancedAIPositionHistory) {
                 window.advancedAIPositionHistory = [];
+            }
+
+            // Reset model compilation flag if we're creating a new model
+            if (!window.usingSavedModel) {
+                window.modelCompiled = false;
             }
 
             initGame();
@@ -2612,6 +2627,9 @@
                             loss: 'meanSquaredError'
                         });
 
+                        // Set flag to indicate model is compiled
+                        window.modelCompiled = true;
+
                         window.usingSavedModel = true; // Set flag to indicate we're using a saved model
                         console.log('Loaded and compiled saved model in makeDeepAIDecision');
                     } catch (err) {
@@ -3029,6 +3047,9 @@
                     loss: 'meanSquaredError'
                 });
 
+                // Set flag to indicate model is compiled
+                window.modelCompiled = true;
+
                 window.usingSavedModel = true; // Set flag to indicate we're using a saved model
                 trainingStatus.textContent = 'Model loaded and compiled successfully';
 
@@ -3147,6 +3168,28 @@
                 await tf.ready();
                 console.log('TensorFlow.js initialized successfully');
 
+                // Check if WebGL is actually working
+                if (tf.getBackend() === 'webgl') {
+                    try {
+                        // Create a small tensor and perform an operation to verify WebGL works
+                        const testTensor = tf.tensor2d([[1, 2], [3, 4]]);
+                        await testTensor.square().data();
+                        testTensor.dispose();
+                    } catch (webglError) {
+                        console.warn('WebGL operations failed, falling back to CPU:', webglError);
+                        await tf.setBackend('cpu');
+                        console.log('Switched to CPU backend after WebGL failure');
+
+                        // Show a message to the user
+                        trainingStatus.textContent = 'GPU not available - using CPU (slower)';
+                        gpuValue.textContent = 'Not Available';
+                        gpuValue.style.color = '#f44336'; // Red
+
+                        // Show a tooltip explaining the issue
+                        showTooltip('WebGL not working - using CPU instead. Training will be slower.', 5000);
+                    }
+                }
+
                 // Initialize the game with deep learning
                 if (aiLevel === 'deep') {
                     trainingStatus.textContent = 'Initializing GPU detection...';
@@ -3162,6 +3205,9 @@
                                 optimizer: tf.train.adam(0.001),
                                 loss: 'meanSquaredError'
                             });
+
+                            // Set flag to indicate model is compiled
+                            window.modelCompiled = true;
 
                             window.usingSavedModel = true; // Set flag to indicate we're using a saved model
                             trainingStatus.textContent = 'Loaded and compiled saved model from browser storage';
