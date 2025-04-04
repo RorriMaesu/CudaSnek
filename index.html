@@ -3689,39 +3689,21 @@
             // Special handling for deep learning mode
             if (requestedLevel === 'deep') {
                 try {
-                    // Check if TensorFlow.js is available
-                    if (typeof tf === 'undefined') {
-                        throw new Error('TensorFlow.js not available');
-                    }
-
-                    // Try to initialize TensorFlow.js
-                    let tfInitialized = false;
-                    try {
-                        // First try to set CPU backend directly to avoid WebGL errors
-                        await tf.setBackend('cpu');
-                        await tf.ready();
-
-                        // Test if the CPU backend actually works (check for whereImpl error)
-                        try {
-                            const testTensor = tf.tensor1d([1, 2, 3]);
-                            await testTensor.data();
-                            testTensor.dispose();
-                        } catch (cpuError) {
-                            if (cpuError.message && cpuError.message.includes('whereImpl')) {
-                                console.error('CPU backend whereImpl error:', cpuError);
-                                throw new Error('CPU backend not working properly');
-                            }
+                    // Initialize the simplified deep AI if not already done
+                    if (!window.simplifiedDeepAI) {
+                        window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                        // Try to load saved model
+                        const loaded = window.simplifiedDeepAI.loadModel();
+                        if (loaded) {
+                            console.log('Loaded simplified deep AI model from localStorage');
+                        } else {
+                            console.log('Created new simplified deep AI model');
                         }
-
-                        tfInitialized = true;
-                        console.log('Successfully initialized TensorFlow.js with CPU backend');
-                    } catch (tfError) {
-                        console.error('Error initializing TensorFlow.js:', tfError);
-                        throw new Error('TensorFlow initialization failed');
                     }
 
-                    // If we get here, TensorFlow.js is working
+                    // If we get here, simplified deep AI is working
                     aiLevel = requestedLevel;
+                    console.log('Successfully initialized simplified deep learning AI');
                 } catch (error) {
                     console.error('Cannot use deep learning mode:', error);
                     showTooltip(`Cannot use deep learning mode. Using advanced AI instead.`, 5000);
