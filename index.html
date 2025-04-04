@@ -1977,16 +1977,19 @@
 
         // Train the model on multiple episodes
         async function trainModel(episodes) {
-            // Check if TensorFlow.js is available
-            if (typeof tf === 'undefined') {
-                alert('TensorFlow.js is not available. Cannot train the AI.');
-                return;
-            }
-
-            // Create model if it doesn't exist
-            if (!model) {
-                showTooltip('Creating new neural network model...', 2000);
-                model = await createModel();
+            // Check if simplified deep AI is available
+            if (!window.simplifiedDeepAI) {
+                // Initialize the simplified deep AI if not already done
+                try {
+                    window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                    // Try to load saved model
+                    window.simplifiedDeepAI.loadModel();
+                    showTooltip('Initialized simplified deep learning AI', 2000);
+                } catch (error) {
+                    console.error('Error initializing simplified deep AI:', error);
+                    alert('Could not initialize the AI training system. Please try again.');
+                    return;
+                }
             }
 
             // Reset training statistics
@@ -2008,8 +2011,8 @@
             trainBtn.textContent = 'Training...';
             trainBtn.disabled = true;
 
-            // Start GPU monitoring
-            startGpuMonitoring();
+            // Update UI to show training is in progress
+            trainingStatus.textContent = 'Training in progress...';
 
             // Temporarily pause the game if running
             const wasRunning = isGameRunning;
@@ -2022,6 +2025,10 @@
             turboMode = (trainingMode === 'turbo');
 
             try {
+                // Get current training stats
+                const startStats = window.simplifiedDeepAI.getTrainingStats();
+                showTooltip(`Starting training with ${episodes} episodes. Current memory: ${startStats.memorySize} samples`, 3000);
+
                 if (turboMode) {
                     // Turbo mode: Run episodes in parallel without visualization
                     await runParallelEpisodes(episodes, parallelWorkers);
@@ -2055,8 +2062,11 @@
                         maxTrainingScoreValue.textContent = trainingMaxScore;
                         epsValue.textContent = episodesPerSecond;
 
-                        // Train on accumulated experiences
-                        await trainOnBatch();
+                        // Get current training stats from simplified deep AI
+                        const stats = window.simplifiedDeepAI.getTrainingStats();
+
+                        // Update training status with current stats
+                        trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
 
                         // Allow UI to update based on speed setting
                         await new Promise(resolve => setTimeout(resolve, 100 / speedMultiplier));
@@ -2065,14 +2075,11 @@
 
                 // Training complete
                 isTraining = false;
-                trainingStatus.textContent = `Trained on ${episodes} episodes`;
+
+                // Get final training stats
+                const finalStats = window.simplifiedDeepAI.getTrainingStats();
+                trainingStatus.textContent = `Trained: ${finalStats.trainingCount} batches, Memory: ${finalStats.memorySize} samples`;
                 trainingProgressBar.style.width = '100%';
-
-                // Stop GPU monitoring
-                stopGpuMonitoring();
-
-                // Final GPU status update
-                updateGpuStatus();
 
                 // Reset training button
                 trainBtn.textContent = originalBtnText;
@@ -2084,10 +2091,9 @@
 
                 showTooltip(`Training complete! Avg score: ${finalAvgScore}, Max: ${trainingMaxScore}`, 5000);
 
-                // Suggest saving the model
-                setTimeout(() => {
-                    showTooltip('Remember to save your trained model!', 3000);
-                }, 5500);
+                // Save the model automatically
+                window.simplifiedDeepAI.saveModel();
+                showTooltip('Model saved automatically!', 3000);
 
                 // Resume game if it was running
                 if (wasRunning) {
@@ -2096,32 +2102,33 @@
                     startGame();
                 }
 
-                // Set flag to indicate we're using a trained model
-                window.usingSavedModel = true;
+                // Update AI status to show we're using a trained model
                 updateAIStatus();
-
-                // Reduce exploration rate after training
-                explorationRate = Math.max(0.05, explorationRate * 0.5);
 
                 // Return training stats
                 return {
                     episodes: episodes,
                     avgScore: trainingScores.reduce((a, b) => a + b, 0) / episodes,
                     maxScore: trainingMaxScore,
-                    episodesPerSecond: episodesPerSecond
+                    memorySize: finalStats.memorySize,
+                    trainingBatches: finalStats.trainingCount
                 };
             } catch (error) {
                 console.error('Training error:', error);
                 isTraining = false;
                 trainingStatus.textContent = `Training error: ${error.message}`;
 
-                // Stop GPU monitoring
-                stopGpuMonitoring();
+                // Reset training button
+                trainBtn.textContent = originalBtnText;
+                trainBtn.disabled = false;
 
                 // Resume game if it was running
                 if (wasRunning) {
                     startGame();
                 }
+
+                // Show error message
+                showTooltip(`Training error: ${error.message}`, 5000);
 
                 throw error;
             }
