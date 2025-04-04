@@ -3536,6 +3536,18 @@
                     if (!currentBackend) {
                         throw new Error('No TensorFlow backend available');
                     }
+
+                    // Test if the backend actually works (check for whereImpl error)
+                    try {
+                        const testTensor = tf.tensor1d([1, 2, 3]);
+                        await testTensor.data();
+                        testTensor.dispose();
+                    } catch (testError) {
+                        if (testError.message && testError.message.includes('whereImpl')) {
+                            console.error('Backend whereImpl error:', testError);
+                            throw new Error('TensorFlow backend not working properly');
+                        }
+                    }
                 } catch (backendError) {
                     console.error('TensorFlow backend error:', backendError);
                     showTooltip('TensorFlow backend not available - using basic AI', 3000);
@@ -3865,6 +3877,19 @@
                         // First try to set CPU backend directly to avoid WebGL errors
                         await tf.setBackend('cpu');
                         await tf.ready();
+
+                        // Test if the CPU backend actually works (check for whereImpl error)
+                        try {
+                            const testTensor = tf.tensor1d([1, 2, 3]);
+                            await testTensor.data();
+                            testTensor.dispose();
+                        } catch (cpuError) {
+                            if (cpuError.message && cpuError.message.includes('whereImpl')) {
+                                console.error('CPU backend whereImpl error:', cpuError);
+                                throw new Error('CPU backend not working properly');
+                            }
+                        }
+
                         tfInitialized = true;
                         console.log('Successfully initialized TensorFlow.js with CPU backend');
                     } catch (tfError) {
@@ -4209,6 +4234,36 @@
                 return;
             }
 
+            // Handle the CPU backend whereImpl error
+            try {
+                // Try a simple tensor operation to check if the CPU backend works
+                const testTensor = tf.tensor1d([1, 2, 3]);
+                await testTensor.data();
+                testTensor.dispose();
+            } catch (cpuError) {
+                if (cpuError.message && cpuError.message.includes('whereImpl')) {
+                    console.error('CPU backend error:', cpuError);
+                    showTooltip('TensorFlow.js CPU backend error. Deep learning features will not be available.', 5000);
+
+                    // Disable deep learning option in the dropdown
+                    const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
+                    if (deepOption) {
+                        deepOption.disabled = true;
+                        deepOption.text += ' (Not Available)';
+                    }
+
+                    // Default to advanced AI
+                    aiLevel = 'advanced';
+                    aiLevelSelect.value = 'advanced';
+
+                    // Initialize with basic AI
+                    await initGame();
+                    updateAIStatus();
+                    startGame();
+                    return;
+                }
+            }
+
             // Wait for TensorFlow.js to finish loading if it's still in progress
             if (window.tfLoadingStatus === 'loading') {
                 console.log('Waiting for TensorFlow.js to finish loading...');
@@ -4433,7 +4488,7 @@
             gridHeight = canvas.height / gridSize;
 
             // Redraw the game if it's running and game state is initialized
-            if (typeof draw === 'function' && gameStarted) {
+            if (typeof draw === 'function' && (typeof isGameRunning !== 'undefined' && isGameRunning)) {
                 try {
                     draw();
                 } catch (error) {
