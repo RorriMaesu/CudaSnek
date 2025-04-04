@@ -421,6 +421,92 @@
             transform: translateY(10px);
         }
 
+        /* Tutorial tooltip styles */
+        .tutorial-tooltip {
+            position: absolute;
+            background: linear-gradient(135deg, #4a5de7, #3949b6);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 15px;
+            z-index: 1001;
+            max-width: 300px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            text-align: left;
+            animation: pulse 2s infinite;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            line-height: 1.5;
+        }
+
+        .tutorial-tooltip h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 18px;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .tutorial-tooltip p {
+            margin-bottom: 12px;
+        }
+
+        .tutorial-tooltip .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .tutorial-tooltip button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: bold;
+        }
+
+        .tutorial-tooltip button.next {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .tutorial-tooltip button:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .tutorial-highlight {
+            position: absolute;
+            border: 3px solid #4a5de7;
+            border-radius: 5px;
+            box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            pointer-events: none;
+            animation: glow 1.5s infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.7), 0 0 5px 2px rgba(74, 93, 231, 0.5);
+            }
+            to {
+                box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.7), 0 0 20px 5px rgba(74, 93, 231, 0.8);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            }
+            50% {
+                box-shadow: 0 6px 30px rgba(74, 93, 231, 0.6);
+            }
+            100% {
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            }
+        }
+
         .tooltip.visible {
             opacity: 1;
             transform: translateY(0);
@@ -3661,6 +3747,291 @@
                 });
             }, 10000);
         });
+
+        // Tutorial System
+        const tutorialSteps = [
+            {
+                title: 'Welcome to CudaSnek!',
+                content: 'This tutorial will guide you through using this AI Snake game. Click "Next" to continue.',
+                position: 'center',
+                element: null,
+                highlight: false
+            },
+            {
+                title: 'Game Modes',
+                content: 'Choose your game mode here. "Human Player" lets you control the snake with arrow keys. "Smart AI" uses neural networks, while "Simple AI" uses pathfinding algorithms.',
+                position: 'right',
+                element: '#aiLevel',
+                highlight: true
+            },
+            {
+                title: 'Start Game',
+                content: 'Click this button to start or pause the game.',
+                position: 'bottom',
+                element: '#startBtn',
+                highlight: true
+            },
+            {
+                title: 'Toggle AI',
+                content: 'Enable or disable AI control with this button. When disabled, you can control the snake yourself.',
+                position: 'bottom',
+                element: '#toggleAIBtn',
+                highlight: true
+            },
+            {
+                title: 'Reset Game',
+                content: 'Start a new game from scratch.',
+                position: 'bottom',
+                element: '#resetBtn',
+                highlight: true
+            },
+            {
+                title: 'Training Controls',
+                content: 'Set the number of episodes to train the AI, then click "Train on GPU" to make the AI smarter.',
+                position: 'top',
+                element: '.training-controls',
+                highlight: true
+            },
+            {
+                title: 'Save Your Model',
+                content: 'After training, save your model to use it later. The AI will remember what it learned!',
+                position: 'right',
+                element: '#saveModelBtn',
+                highlight: true
+            },
+            {
+                title: 'Game Stats',
+                content: 'Keep track of your score, snake length, and game speed here.',
+                position: 'left',
+                element: '.stats',
+                highlight: true
+            },
+            {
+                title: 'You\'re Ready!',
+                content: 'You now know how to use CudaSnek! Click "Finish" to start playing.',
+                position: 'center',
+                element: null,
+                highlight: false
+            }
+        ];
+
+        let currentTutorialStep = 0;
+        let tutorialActive = false;
+        let highlightElement = null;
+        let tooltipElement = null;
+
+        // Function to start the tutorial
+        function startTutorial() {
+            currentTutorialStep = 0;
+            tutorialActive = true;
+            showTutorialStep(currentTutorialStep);
+        }
+
+        // Function to show a tutorial step
+        function showTutorialStep(stepIndex) {
+            // Remove previous highlight and tooltip if they exist
+            if (highlightElement) {
+                highlightElement.remove();
+                highlightElement = null;
+            }
+            if (tooltipElement) {
+                tooltipElement.remove();
+                tooltipElement = null;
+            }
+
+            // Get the current step
+            const step = tutorialSteps[stepIndex];
+
+            // Create tooltip element
+            tooltipElement = document.createElement('div');
+            tooltipElement.className = 'tutorial-tooltip';
+
+            // Add content to tooltip
+            tooltipElement.innerHTML = `
+                <h3>${step.title}</h3>
+                <p>${step.content}</p>
+                <div class="buttons">
+                    ${stepIndex > 0 ? '<button class="prev">Previous</button>' : ''}
+                    ${stepIndex < tutorialSteps.length - 1 ?
+                        '<button class="next">Next</button>' :
+                        '<button class="finish">Finish</button>'}
+                </div>
+            `;
+
+            // Add event listeners to buttons
+            const prevButton = tooltipElement.querySelector('.prev');
+            if (prevButton) {
+                prevButton.addEventListener('click', () => {
+                    showTutorialStep(stepIndex - 1);
+                });
+            }
+
+            const nextButton = tooltipElement.querySelector('.next');
+            if (nextButton) {
+                nextButton.addEventListener('click', () => {
+                    showTutorialStep(stepIndex + 1);
+                });
+            }
+
+            const finishButton = tooltipElement.querySelector('.finish');
+            if (finishButton) {
+                finishButton.addEventListener('click', () => {
+                    endTutorial();
+                });
+            }
+
+            // Add tooltip to the document
+            document.body.appendChild(tooltipElement);
+
+            // If there's an element to highlight
+            if (step.element && step.highlight) {
+                const targetElement = document.querySelector(step.element);
+                if (targetElement) {
+                    // Create highlight element
+                    highlightElement = document.createElement('div');
+                    highlightElement.className = 'tutorial-highlight';
+
+                    // Position the highlight over the target element
+                    const rect = targetElement.getBoundingClientRect();
+                    highlightElement.style.left = rect.left + 'px';
+                    highlightElement.style.top = rect.top + 'px';
+                    highlightElement.style.width = rect.width + 'px';
+                    highlightElement.style.height = rect.height + 'px';
+
+                    // Add highlight to the document
+                    document.body.appendChild(highlightElement);
+
+                    // Position the tooltip relative to the highlighted element
+                    positionTooltip(tooltipElement, targetElement, step.position);
+                } else {
+                    // Center the tooltip if the element doesn't exist
+                    centerTooltip(tooltipElement);
+                }
+            } else {
+                // Center the tooltip if there's no element to highlight
+                centerTooltip(tooltipElement);
+            }
+        }
+
+        // Function to position the tooltip relative to an element
+        function positionTooltip(tooltip, targetElement, position) {
+            const targetRect = targetElement.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+
+            let left, top;
+
+            switch (position) {
+                case 'top':
+                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+                    top = targetRect.top - tooltipRect.height - 10;
+                    break;
+                case 'bottom':
+                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+                    top = targetRect.bottom + 10;
+                    break;
+                case 'left':
+                    left = targetRect.left - tooltipRect.width - 10;
+                    top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+                    break;
+                case 'right':
+                    left = targetRect.right + 10;
+                    top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
+                    break;
+                default: // center
+                    left = (window.innerWidth / 2) - (tooltipRect.width / 2);
+                    top = (window.innerHeight / 2) - (tooltipRect.height / 2);
+            }
+
+            // Make sure the tooltip stays within the viewport
+            left = Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10));
+            top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        // Function to center the tooltip on the screen
+        function centerTooltip(tooltip) {
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const left = (window.innerWidth / 2) - (tooltipRect.width / 2);
+            const top = (window.innerHeight / 2) - (tooltipRect.height / 2);
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        // Function to end the tutorial
+        function endTutorial() {
+            tutorialActive = false;
+
+            // Remove highlight and tooltip
+            if (highlightElement) {
+                highlightElement.remove();
+                highlightElement = null;
+            }
+            if (tooltipElement) {
+                tooltipElement.remove();
+                tooltipElement = null;
+            }
+
+            // Show a final tooltip
+            showTooltip('Tutorial completed! Click the help button anytime to see it again.', 5000);
+        }
+
+        // Add a tutorial button to the page
+        const tutorialButton = document.createElement('button');
+        tutorialButton.id = 'tutorialBtn';
+        tutorialButton.className = 'help-button pulse-button';
+        tutorialButton.innerHTML = '<i class="fas fa-graduation-cap"></i>';
+        tutorialButton.style.right = '80px'; // Position it next to the help button
+        tutorialButton.title = 'Start Tutorial';
+        document.body.appendChild(tutorialButton);
+
+        // Add event listener to the tutorial button
+        tutorialButton.addEventListener('click', () => {
+            if (!tutorialActive) {
+                startTutorial();
+            }
+        });
+
+        // Add tutorial button style
+        const style = document.createElement('style');
+        style.textContent = `
+            #tutorialBtn {
+                position: fixed;
+                bottom: 20px;
+                right: 80px;
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #4a5de7, #3949b6);
+                color: white;
+                border: none;
+                font-size: 20px;
+                cursor: pointer;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                z-index: 100;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+            }
+
+            #tutorialBtn:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Start the tutorial automatically on first visit
+        if (!localStorage.getItem('tutorialShown')) {
+            // Wait for the page to fully load
+            setTimeout(() => {
+                startTutorial();
+                localStorage.setItem('tutorialShown', 'true');
+            }, 2000);
+        }
     </script>
 
     <!-- Buy Me a Coffee Support Link -->
