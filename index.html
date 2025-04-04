@@ -1543,25 +1543,18 @@
         // Train model on a batch of experiences
         async function trainOnBatch() {
             try {
-                // Use the appropriate AI for training based on mode
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                // Use the enhanced AI for training
+                if (window.enhancedDeepAI) {
                     window.enhancedDeepAI.trainOnBatch();
 
                     // Update training status
                     const stats = window.enhancedDeepAI.getTrainingStats();
                     trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
                     return;
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    window.simplifiedDeepAI.trainOnBatch();
-
-                    // Update training status
-                    const stats = window.simplifiedDeepAI.getTrainingStats();
-                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
-                    return;
                 }
 
-                // If simplified deep AI is not available, show warning
-                console.warn('Cannot train - simplified deep AI not initialized');
+                // If enhanced deep AI is not available, show warning
+                console.warn('Cannot train - enhanced deep AI not initialized');
                 return;
             } catch (error) {
                 console.error('Fatal error in trainOnBatch:', error);
@@ -1596,18 +1589,14 @@
                 else if (simulatedDirection.x === 0 && simulatedDirection.y === 1) currentDirection = 'down';
                 else if (simulatedDirection.x === -1 && simulatedDirection.y === 0) currentDirection = 'left';
 
-                // Get action from the appropriate AI based on mode
+                // Get action from the enhanced AI
                 let actionProbabilities;
                 let explorationRate;
 
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                if (window.enhancedDeepAI) {
                     const result = window.enhancedDeepAI.forward(state, currentDirection);
                     actionProbabilities = result.actionProbabilities;
                     explorationRate = window.enhancedDeepAI.explorationRate;
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    const result = window.simplifiedDeepAI.forward(state, currentDirection);
-                    actionProbabilities = result.actionProbabilities;
-                    explorationRate = window.simplifiedDeepAI.explorationRate;
                 } else {
                     // Fallback to default values if AI not available
                     actionProbabilities = [0.25, 0.25, 0.25, 0.25];
@@ -1730,13 +1719,11 @@
                 nextState.foodX = simulatedFood.x;
                 nextState.foodY = simulatedFood.y;
 
-                // Store experience in the appropriate AI based on mode
+                // Store experience in the enhanced AI
                 const actionString = ['up', 'right', 'down', 'left'][action];
 
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                if (window.enhancedDeepAI) {
                     window.enhancedDeepAI.storeExperience(state, actionString, reward, nextState, done);
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    window.simplifiedDeepAI.storeExperience(state, actionString, reward, nextState, done);
                 }
 
                 // Update state
@@ -1789,11 +1776,9 @@
                 const batchResults = await Promise.all(episodePromises);
                 results.push(...batchResults);
 
-                // Train on accumulated experiences using the appropriate AI based on mode
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                // Train on accumulated experiences
+                if (window.enhancedDeepAI) {
                     window.enhancedDeepAI.trainOnBatch();
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    window.simplifiedDeepAI.trainOnBatch();
                 }
 
                 // Update progress
@@ -1927,8 +1912,8 @@
 
         // Train the model on multiple episodes
         async function trainModel(episodes) {
-            // Check which AI mode we're in
-            if (aiLevel === 'enhanced') {
+            // Check if we're in a trainable AI mode
+            if (aiLevel === 'deep') {
                 // Initialize the enhanced deep AI if not already done
                 if (!window.enhancedDeepAI) {
                     try {
@@ -1942,24 +1927,9 @@
                         return;
                     }
                 }
-            } else if (aiLevel === 'deep') {
-                // Check if simplified deep AI is available
-                if (!window.simplifiedDeepAI) {
-                    // Initialize the simplified deep AI if not already done
-                    try {
-                        window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
-                        // Try to load saved model
-                        window.simplifiedDeepAI.loadModel();
-                        showTooltip('Initialized simplified deep learning AI', 2000);
-                    } catch (error) {
-                        console.error('Error initializing simplified deep AI:', error);
-                        alert('Could not initialize the AI training system. Please try again.');
-                        return;
-                    }
-                }
             } else {
                 // Not in a trainable AI mode
-                alert('Please select either Enhanced AI or Smart AI mode to train.');
+                alert('Please select Smart AI mode to train.');
                 return;
             }
 
@@ -1996,14 +1966,11 @@
             turboMode = (trainingMode === 'turbo');
 
             try {
-                // Get current training stats based on AI mode
+                // Get current training stats
                 let startStats;
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                if (window.enhancedDeepAI) {
                     startStats = window.enhancedDeepAI.getTrainingStats();
-                    showTooltip(`Starting training with ${episodes} episodes. Games played: ${startStats.gamesPlayed}`, 3000);
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    startStats = window.simplifiedDeepAI.getTrainingStats();
-                    showTooltip(`Starting training with ${episodes} episodes. Current memory: ${startStats.memorySize} samples`, 3000);
+                    showTooltip(`Starting training with ${episodes} episodes. Games played: ${startStats.gamesPlayed}, High Score: ${startStats.highScore}`, 3000);
                 }
 
                 if (turboMode) {
@@ -2039,13 +2006,10 @@
                         maxTrainingScoreValue.textContent = trainingMaxScore;
                         epsValue.textContent = episodesPerSecond;
 
-                        // Get current training stats based on AI mode
-                        if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                        // Get current training stats
+                        if (window.enhancedDeepAI) {
                             const stats = window.enhancedDeepAI.getTrainingStats();
                             trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
-                        } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                            const stats = window.simplifiedDeepAI.getTrainingStats();
-                            trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
                         }
 
                         // Allow UI to update based on speed setting
@@ -2056,14 +2020,11 @@
                 // Training complete
                 isTraining = false;
 
-                // Get final training stats based on AI mode
+                // Get final training stats
                 let finalStats;
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                if (window.enhancedDeepAI) {
                     finalStats = window.enhancedDeepAI.getTrainingStats();
                     trainingStatus.textContent = `Trained: ${finalStats.trainingCount} batches, Games: ${finalStats.gamesPlayed}, High Score: ${finalStats.highScore}`;
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    finalStats = window.simplifiedDeepAI.getTrainingStats();
-                    trainingStatus.textContent = `Trained: ${finalStats.trainingCount} batches, Memory: ${finalStats.memorySize} samples`;
                 }
                 trainingProgressBar.style.width = '100%';
 
@@ -2077,12 +2038,9 @@
 
                 showTooltip(`Training complete! Avg score: ${finalAvgScore}, Max: ${trainingMaxScore}`, 5000);
 
-                // Save the model automatically based on AI mode
-                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                // Save the model automatically
+                if (window.enhancedDeepAI) {
                     window.enhancedDeepAI.saveModel();
-                    showTooltip('Enhanced AI model saved automatically!', 3000);
-                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
-                    window.simplifiedDeepAI.saveModel();
                     showTooltip('Smart AI model saved automatically!', 3000);
                 }
 
@@ -2341,7 +2299,7 @@
                     qTable[stateKey][lastAction] += 1.0;
                 }
                 // For deep learning AI: reward the action that led to food
-                else if (aiLevel === "deep" && window.enhancedDeepAI) {
+                else if (aiLevel === "deep") {
                     // Get current state
                     const state = getState(head);
                     state.headX = head.x;
@@ -2349,12 +2307,14 @@
                     state.foodX = food.x;
                     state.foodY = food.y;
 
-                    // Notify the enhanced AI about food eaten
-                    window.enhancedDeepAI.handleFoodEaten(state);
+                    // Notify the enhanced AI about food eaten if available
+                    if (window.enhancedDeepAI) {
+                        window.enhancedDeepAI.handleFoodEaten(state);
 
-                    // Update training status
-                    const stats = window.enhancedDeepAI.getTrainingStats();
-                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
+                        // Update training status
+                        const stats = window.enhancedDeepAI.getTrainingStats();
+                        trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
+                    }
                 }
 
                 // Increase speed every 5 food items
@@ -2678,7 +2638,7 @@
                 qTable[stateKey][lastAction] -= 1.0;
             }
             // For deep learning AI: notify about game over
-            else if (aiLevel === "deep" && window.enhancedDeepAI) {
+            else if (aiLevel === "deep") {
                 // Get final state
                 const head = snake[0];
                 const state = getState(head);
@@ -2687,12 +2647,14 @@
                 state.foodX = food.x;
                 state.foodY = food.y;
 
-                // Notify the enhanced AI about game over with score
-                window.enhancedDeepAI.handleGameOver(state, score);
+                // Notify the enhanced AI about game over with score if available
+                if (window.enhancedDeepAI) {
+                    window.enhancedDeepAI.handleGameOver(state, score);
 
-                // Update training status
-                const stats = window.enhancedDeepAI.getTrainingStats();
-                trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
+                    // Update training status
+                    const stats = window.enhancedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
+                }
             }
 
             // Increment game count for learning
