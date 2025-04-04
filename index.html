@@ -421,21 +421,22 @@
             transform: translateY(10px);
         }
 
-        /* Tutorial tooltip styles */
+        /* Tutorial tooltip styles - improved visibility and persistence */
         .tutorial-tooltip {
-            position: absolute;
+            position: fixed; /* Changed from absolute to fixed for better positioning */
             background: linear-gradient(135deg, #4a5de7, #3949b6);
             color: white;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 15px;
-            z-index: 1001;
-            max-width: 300px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            padding: 20px; /* Increased padding */
+            border-radius: 12px; /* Slightly larger radius */
+            font-size: 16px; /* Slightly larger font */
+            z-index: 9999; /* Much higher z-index to ensure it's on top */
+            max-width: 350px; /* Slightly wider */
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); /* Stronger shadow */
             text-align: left;
             animation: pulse 2s infinite;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            line-height: 1.5;
+            border: 2px solid rgba(255, 255, 255, 0.3); /* More visible border */
+            line-height: 1.6; /* Slightly increased line height */
+            pointer-events: auto; /* Ensure it can receive clicks */
         }
 
         .tutorial-tooltip h3 {
@@ -477,11 +478,11 @@
         }
 
         .tutorial-highlight {
-            position: absolute;
-            border: 3px solid #4a5de7;
-            border-radius: 5px;
-            box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.7);
-            z-index: 999;
+            position: fixed; /* Changed from absolute to fixed for better positioning */
+            border: 4px solid #4a5de7; /* Thicker border */
+            border-radius: 8px; /* Slightly larger radius */
+            box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.8); /* Darker overlay for better contrast */
+            z-index: 9998; /* Higher z-index, but below tooltip */
             pointer-events: none;
             animation: glow 1.5s infinite alternate;
         }
@@ -3748,8 +3749,8 @@
             }, 10000);
         });
 
-        // Tutorial System
-        const tutorialSteps = [
+        // Tutorial System - Improved version with better persistence
+        let tutorialSteps = [
             {
                 title: 'Welcome to CudaSnek!',
                 content: 'This tutorial will guide you through using this AI Snake game. Click "Next" to continue.',
@@ -3827,24 +3828,40 @@
             showTutorialStep(currentTutorialStep);
         }
 
-        // Function to show a tutorial step
+        // Function to show a tutorial step - improved for better reliability
         function showTutorialStep(stepIndex) {
+            // Store current step index
+            currentTutorialStep = stepIndex;
+
             // Remove previous highlight and tooltip if they exist
             if (highlightElement) {
-                highlightElement.remove();
+                try {
+                    document.body.removeChild(highlightElement);
+                } catch (e) {
+                    console.log('Could not remove highlight element:', e);
+                }
                 highlightElement = null;
             }
             if (tooltipElement) {
-                tooltipElement.remove();
+                try {
+                    document.body.removeChild(tooltipElement);
+                } catch (e) {
+                    console.log('Could not remove tooltip element:', e);
+                }
                 tooltipElement = null;
             }
 
             // Get the current step
             const step = tutorialSteps[stepIndex];
+            if (!step) {
+                console.error('Tutorial step not found:', stepIndex);
+                return;
+            }
 
             // Create tooltip element
             tooltipElement = document.createElement('div');
             tooltipElement.className = 'tutorial-tooltip';
+            tooltipElement.id = 'tutorial-tooltip';
 
             // Add content to tooltip
             tooltipElement.innerHTML = `
@@ -3880,37 +3897,52 @@
                 });
             }
 
-            // Add tooltip to the document
+            // Add tooltip to the document first so we can measure it
             document.body.appendChild(tooltipElement);
 
             // If there's an element to highlight
             if (step.element && step.highlight) {
-                const targetElement = document.querySelector(step.element);
-                if (targetElement) {
-                    // Create highlight element
-                    highlightElement = document.createElement('div');
-                    highlightElement.className = 'tutorial-highlight';
+                try {
+                    const targetElement = document.querySelector(step.element);
+                    if (targetElement) {
+                        // Create highlight element
+                        highlightElement = document.createElement('div');
+                        highlightElement.className = 'tutorial-highlight';
+                        highlightElement.id = 'tutorial-highlight';
 
-                    // Position the highlight over the target element
-                    const rect = targetElement.getBoundingClientRect();
-                    highlightElement.style.left = rect.left + 'px';
-                    highlightElement.style.top = rect.top + 'px';
-                    highlightElement.style.width = rect.width + 'px';
-                    highlightElement.style.height = rect.height + 'px';
+                        // Position the highlight over the target element
+                        const rect = targetElement.getBoundingClientRect();
+                        highlightElement.style.left = rect.left + 'px';
+                        highlightElement.style.top = rect.top + 'px';
+                        highlightElement.style.width = rect.width + 'px';
+                        highlightElement.style.height = rect.height + 'px';
 
-                    // Add highlight to the document
-                    document.body.appendChild(highlightElement);
+                        // Add highlight to the document
+                        document.body.appendChild(highlightElement);
 
-                    // Position the tooltip relative to the highlighted element
-                    positionTooltip(tooltipElement, targetElement, step.position);
-                } else {
-                    // Center the tooltip if the element doesn't exist
+                        // Position the tooltip relative to the highlighted element
+                        positionTooltip(tooltipElement, targetElement, step.position);
+
+                        // Scroll element into view if needed
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        console.warn(`Element not found: ${step.element}`);
+                        centerTooltip(tooltipElement);
+                    }
+                } catch (e) {
+                    console.error('Error highlighting element:', e);
                     centerTooltip(tooltipElement);
                 }
             } else {
                 // Center the tooltip if there's no element to highlight
                 centerTooltip(tooltipElement);
             }
+
+            // Make sure the tooltip is visible by forcing a reflow
+            tooltipElement.style.opacity = '0';
+            setTimeout(() => {
+                tooltipElement.style.opacity = '1';
+            }, 50);
         }
 
         // Function to position the tooltip relative to an element
@@ -3960,78 +3992,130 @@
             tooltip.style.top = top + 'px';
         }
 
-        // Function to end the tutorial
+        // Function to end the tutorial - improved for better reliability
         function endTutorial() {
             tutorialActive = false;
 
-            // Remove highlight and tooltip
+            // Remove highlight and tooltip with better error handling
             if (highlightElement) {
-                highlightElement.remove();
+                try {
+                    document.body.removeChild(highlightElement);
+                } catch (e) {
+                    console.log('Could not remove highlight element during cleanup:', e);
+                }
                 highlightElement = null;
             }
+
             if (tooltipElement) {
-                tooltipElement.remove();
+                try {
+                    document.body.removeChild(tooltipElement);
+                } catch (e) {
+                    console.log('Could not remove tooltip element during cleanup:', e);
+                }
                 tooltipElement = null;
             }
 
+            // Also try to remove by ID as a fallback
+            try {
+                const highlightById = document.getElementById('tutorial-highlight');
+                if (highlightById) document.body.removeChild(highlightById);
+
+                const tooltipById = document.getElementById('tutorial-tooltip');
+                if (tooltipById) document.body.removeChild(tooltipById);
+            } catch (e) {
+                console.log('Error during additional cleanup:', e);
+            }
+
             // Show a final tooltip
-            showTooltip('Tutorial completed! Click the help button anytime to see it again.', 5000);
+            showTooltip('Tutorial completed! Click the tutorial button anytime to see it again.', 5000);
         }
 
-        // Add a tutorial button to the page
-        const tutorialButton = document.createElement('button');
-        tutorialButton.id = 'tutorialBtn';
-        tutorialButton.className = 'help-button pulse-button';
-        tutorialButton.innerHTML = '<i class="fas fa-graduation-cap"></i>';
-        tutorialButton.style.right = '80px'; // Position it next to the help button
-        tutorialButton.title = 'Start Tutorial';
-        document.body.appendChild(tutorialButton);
+        // Add a tutorial button to the page - improved visibility and reliability
+        window.addEventListener('DOMContentLoaded', () => {
+            // Create the tutorial button after DOM is fully loaded
+            const tutorialButton = document.createElement('button');
+            tutorialButton.id = 'tutorialBtn';
+            tutorialButton.className = 'help-button pulse-button';
+            tutorialButton.innerHTML = '<i class="fas fa-graduation-cap"></i>';
+            tutorialButton.style.right = '80px'; // Position it next to the help button
+            tutorialButton.style.zIndex = '9999'; // Ensure high z-index
+            tutorialButton.title = 'Start Tutorial';
+            document.body.appendChild(tutorialButton);
 
-        // Add event listener to the tutorial button
-        tutorialButton.addEventListener('click', () => {
-            if (!tutorialActive) {
-                startTutorial();
-            }
+            // Add event listener to the tutorial button
+            tutorialButton.addEventListener('click', () => {
+                if (!tutorialActive) {
+                    // Reset tutorial state before starting
+                    if (highlightElement) {
+                        try { document.body.removeChild(highlightElement); } catch (e) {}
+                        highlightElement = null;
+                    }
+                    if (tooltipElement) {
+                        try { document.body.removeChild(tooltipElement); } catch (e) {}
+                        tooltipElement = null;
+                    }
+                    startTutorial();
+                }
+            });
         });
 
-        // Add tutorial button style
-        const style = document.createElement('style');
-        style.textContent = `
-            #tutorialBtn {
-                position: fixed;
-                bottom: 20px;
-                right: 80px;
-                width: 50px;
-                height: 50px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #4a5de7, #3949b6);
-                color: white;
-                border: none;
-                font-size: 20px;
-                cursor: pointer;
-                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-                z-index: 100;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.3s ease;
-            }
+        // Event listener is now added in the DOMContentLoaded event above
 
-            #tutorialBtn:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
-            }
-        `;
-        document.head.appendChild(style);
+        // Add tutorial button style - improved visibility
+        window.addEventListener('DOMContentLoaded', () => {
+            const style = document.createElement('style');
+            style.textContent = `
+                #tutorialBtn {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 80px;
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #4a5de7, #3949b6);
+                    color: white;
+                    border: none;
+                    font-size: 20px;
+                    cursor: pointer;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                    z-index: 9999;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.3s ease;
+                    animation: pulse-button 2s infinite;
+                }
 
-        // Start the tutorial automatically on first visit
-        if (!localStorage.getItem('tutorialShown')) {
-            // Wait for the page to fully load
+                #tutorialBtn:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+                }
+
+                @keyframes pulse-button {
+                    0% {
+                        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                    }
+                    50% {
+                        box-shadow: 0 4px 20px rgba(74, 93, 231, 0.6);
+                    }
+                    100% {
+                        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+
+        // Start the tutorial automatically on first visit with improved timing and persistence
+        window.addEventListener('load', () => {
+            // Wait a bit longer for everything to be fully loaded and stable
             setTimeout(() => {
-                startTutorial();
-                localStorage.setItem('tutorialShown', 'true');
-            }, 2000);
-        }
+                if (!localStorage.getItem('tutorialShown')) {
+                    startTutorial();
+                    localStorage.setItem('tutorialShown', 'true');
+                }
+            }, 3000); // Increased from 2000ms to 3000ms for better stability
+        });
     </script>
 
     <!-- Buy Me a Coffee Support Link -->
