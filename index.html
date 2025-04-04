@@ -1,0 +1,2571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Snake Game</title>
+    <!-- Force hardware acceleration for WebGL -->
+    <style>
+        canvas { transform: translateZ(0); } /* Force GPU acceleration */
+    </style>
+    <!-- TensorFlow.js for GPU-accelerated learning -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <!-- TensorFlow.js WebGL backend -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.18.0/dist/tf-backend-webgl.min.js"></script>
+    <!-- TensorFlow.js CPU backend as fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@3.18.0/dist/tf-backend-cpu.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            background: #0f0f1a;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #4a4e69;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #7a7c9c;
+        }
+
+        select {
+            background: #4a4e69;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        select:hover {
+            background: #7a7c9c;
+        }
+
+        .training-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 5px;
+        }
+
+        .training-controls input {
+            width: 80px;
+            background: #4a4e69;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        #trainingStatus {
+            margin-left: auto;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .training-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+        }
+
+        #exportModelBtn, #importModelBtn {
+            background: #2c3e50;
+        }
+
+        #exportModelBtn:hover, #importModelBtn:hover {
+            background: #34495e;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 10px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .ai-mode {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .game-over h2 {
+            margin-top: 0;
+            color: #ff5555;
+        }
+
+        .game-over button {
+            margin-top: 15px;
+            background: #ff5555;
+        }
+
+        .game-over button:hover {
+            background: #ff7777;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Snake Game</h1>
+
+    <div class="controls">
+        <button id="startBtn">Start Game</button>
+        <button id="toggleAIBtn">Toggle AI</button>
+        <button id="resetBtn">Reset Game</button>
+        <select id="aiLevel">
+            <option value="deep">Deep Learning AI</option>
+            <option value="learning">Q-Learning AI</option>
+            <option value="advanced">Advanced AI</option>
+            <option value="basic">Basic AI</option>
+        </select>
+    </div>
+
+    <div class="training-controls">
+        <button id="trainBtn">Train on GPU</button>
+        <input type="number" id="trainEpisodes" min="100" max="100000" value="1000" step="100">
+        <span>episodes</span>
+        <select id="trainSpeed">
+            <option value="turbo">Turbo (Headless)</option>
+            <option value="fast">Fast (10x)</option>
+            <option value="normal">Normal Speed</option>
+        </select>
+        <button id="saveModelBtn">Save Model</button>
+        <button id="loadModelBtn">Load Model</button>
+        <button id="exportModelBtn">Export Model</button>
+        <button id="importModelBtn">Import Model</button>
+        <span id="trainingStatus">Ready</span>
+    </div>
+
+    <div class="training-stats">
+        <div class="stat-box">
+            <div class="stat-label">Training Progress</div>
+            <div class="progress-bar">
+                <div id="trainingProgressBar" class="progress-fill"></div>
+            </div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Avg. Score</div>
+            <div class="stat-value" id="avgScoreValue">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Max Score</div>
+            <div class="stat-value" id="maxTrainingScoreValue">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Episodes/sec</div>
+            <div class="stat-value" id="epsValue">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">GPU</div>
+            <div class="stat-value" id="gpuValue">-</div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <canvas id="gameCanvas" width="500" height="500"></canvas>
+        <div class="ai-mode" id="aiStatus">AI: Active</div>
+        <div class="game-over" id="gameOverScreen">
+            <h2>Game Over!</h2>
+            <p id="finalScore">Score: 0</p>
+            <button id="restartBtn">Play Again</button>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-label">Score</div>
+            <div class="stat-value" id="scoreValue">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Length</div>
+            <div class="stat-value" id="lengthValue">1</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Speed</div>
+            <div class="stat-value" id="speedValue">1x</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">High Score</div>
+            <div class="stat-value" id="highScoreValue">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Games</div>
+            <div class="stat-value" id="gameCountValue">0</div>
+        </div>
+    </div>
+
+    <script>
+        // Game elements
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const gridWidth = canvas.width / gridSize;
+        const gridHeight = canvas.height / gridSize;
+
+        // UI elements
+        const startBtn = document.getElementById('startBtn');
+        const toggleAIBtn = document.getElementById('toggleAIBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const scoreValue = document.getElementById('scoreValue');
+        const lengthValue = document.getElementById('lengthValue');
+        const speedValue = document.getElementById('speedValue');
+        const highScoreValue = document.getElementById('highScoreValue');
+        const gameCountValue = document.getElementById('gameCountValue');
+        const aiStatus = document.getElementById('aiStatus');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScore = document.getElementById('finalScore');
+
+        // Training UI elements
+        const trainBtn = document.getElementById('trainBtn');
+        const trainEpisodes = document.getElementById('trainEpisodes');
+        const trainSpeed = document.getElementById('trainSpeed');
+        const saveModelBtn = document.getElementById('saveModelBtn');
+        const loadModelBtn = document.getElementById('loadModelBtn');
+        const exportModelBtn = document.getElementById('exportModelBtn');
+        const importModelBtn = document.getElementById('importModelBtn');
+        const trainingStatus = document.getElementById('trainingStatus');
+        const trainingProgressBar = document.getElementById('trainingProgressBar');
+        const avgScoreValue = document.getElementById('avgScoreValue');
+        const maxTrainingScoreValue = document.getElementById('maxTrainingScoreValue');
+        const epsValue = document.getElementById('epsValue');
+        const gpuValue = document.getElementById('gpuValue');
+
+        // Game state
+        let snake = [];
+        let food = {};
+        let direction = { x: 1, y: 0 };
+        let nextDirection = { x: 1, y: 0 };
+        let score = 0;
+        let gameSpeed = 100; // milliseconds between updates
+        let gameInterval;
+        let isAIActive = true;
+        let isGameRunning = false;
+        let isGameOver = false;
+        let aiLevel = "deep"; // Default to deep learning AI
+        let currentPath = []; // Store the current path for visualization
+
+        // Learning AI state
+        let moveHistory = []; // Track recent moves to detect loops
+        let positionHistory = new Set(); // Track visited positions
+        let learningRate = 0.1; // How quickly the AI adapts
+        let explorationRate = 0.2; // Chance to try random moves (initially)
+        let qTable = {}; // Q-learning table
+        let lastState = null; // Previous state for Q-learning
+        let lastAction = null; // Previous action for Q-learning
+        let gameCount = 0; // Number of games played
+        let highScore = 0; // Highest score achieved
+        let loopDetected = false; // Flag for loop detection
+        let hamiltonianPath = []; // Store Hamiltonian cycle for advanced navigation
+
+        // Deep learning state
+        let model = null; // TensorFlow.js model
+        let replayMemory = []; // Experience replay buffer
+        let replayMemorySize = 10000; // Maximum size of replay memory
+        let miniBatchSize = 64; // Size of mini-batch for training
+        let discountFactor = 0.95; // Discount factor for future rewards
+        let isTraining = false; // Flag for training mode
+        let trainingProgress = 0; // Progress of current training session
+        let gpuInfo = null; // GPU information
+        let gpuMonitorInterval = null; // Interval for GPU monitoring
+
+        // Training statistics
+        let trainingScores = []; // Scores from training episodes
+        let trainingMaxScore = 0; // Maximum score achieved during training
+        let trainingStartTime = 0; // Time when training started
+        let trainingEpisodesCompleted = 0; // Number of episodes completed
+        let episodesPerSecond = 0; // Training speed metric
+        let turboMode = false; // Flag for headless turbo training
+        let parallelWorkers = 4; // Number of parallel simulations for turbo mode
+
+        // Initialize TensorFlow.js with GPU support
+        async function initializeTensorFlow() {
+            if (!tf) {
+                console.error('TensorFlow.js not loaded');
+                return false;
+            }
+
+            // Force TensorFlow.js to initialize immediately
+            await tf.ready();
+
+            // Check available backends
+            const availableBackends = Object.keys(tf.engine().registryFactory);
+            console.log('Available TensorFlow.js backends:', availableBackends);
+
+            // Try to detect GPU
+            let gpuDetected = false;
+            let renderer = 'unknown';
+
+            try {
+                // Create a canvas and get WebGL context
+                const canvas = document.createElement('canvas');
+                canvas.width = 10;
+                canvas.height = 10;
+
+                // Try WebGL2 first (better performance)
+                let gl = canvas.getContext('webgl2');
+                if (!gl) {
+                    // Fall back to WebGL1
+                    gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                }
+
+                if (gl) {
+                    // Get GPU info
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) {
+                        renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                        gpuInfo = renderer;
+                        console.log('GPU detected:', renderer);
+
+                        // Check if NVIDIA GPU is detected
+                        const isNvidia = renderer.toLowerCase().includes('nvidia');
+                        const is3060 = renderer.toLowerCase().includes('3060') || renderer.toLowerCase().includes('rtx');
+
+                        if (isNvidia) {
+                            console.log('NVIDIA GPU detected!');
+                            gpuDetected = true;
+                            if (is3060) {
+                                console.log('NVIDIA RTX 3060 Ti detected!');
+                            }
+                        }
+
+                        // Check if using software renderer
+                        if (renderer.toLowerCase().includes('swiftshader') ||
+                            renderer.toLowerCase().includes('software') ||
+                            renderer.toLowerCase().includes('llvmpipe')) {
+                            console.warn('Software renderer detected - not using actual GPU hardware');
+                            gpuDetected = false;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error detecting GPU:', e);
+            }
+
+            // Set the appropriate backend
+            try {
+                // First try to explicitly set WebGL backend if GPU was detected
+                if (gpuDetected && availableBackends.includes('webgl')) {
+                    console.log('Setting WebGL backend for GPU acceleration');
+                    await tf.setBackend('webgl');
+
+                    // Configure WebGL for better performance
+                    const backend = tf.backend();
+                    if (backend && typeof backend.setFlags === 'function') {
+                        backend.setFlags({
+                            'WEBGL_PACK': true,
+                            'WEBGL_FORCE_F16_TEXTURES': false,
+                            'WEBGL_CPU_FORWARD': false,
+                            'WEBGL_FLUSH_THRESHOLD': 1
+                        });
+                    }
+
+                    // Verify backend is actually WebGL
+                    if (tf.getBackend() === 'webgl') {
+                        console.log('Successfully using WebGL backend');
+                        trainingStatus.textContent = `GPU: ${renderer}`;
+                        gpuValue.textContent = `Active (${renderer})`;
+                        gpuValue.style.color = '#4CAF50'; // Green
+                        return true;
+                    }
+                }
+
+                // If WebGL failed or no GPU detected, use CPU backend
+                console.log('Using CPU backend');
+                await tf.setBackend('cpu');
+                trainingStatus.textContent = 'Using CPU (GPU not available)';
+                gpuValue.textContent = 'CPU Only';
+                gpuValue.style.color = '#f44336'; // Red
+                return false;
+            } catch (e) {
+                console.error('Error setting TensorFlow.js backend:', e);
+                trainingStatus.textContent = 'TensorFlow initialization error';
+                return false;
+            }
+        }
+
+        // Create neural network model for deep learning
+        async function createModel() {
+            // Initialize TensorFlow with GPU support
+            await initializeTensorFlow();
+
+            // Create the model
+            let model;
+
+            try {
+                console.log('Creating neural network model...');
+                model = tf.sequential();
+
+                // Input layer: 13 inputs (state representation)
+                model.add(tf.layers.dense({
+                    units: 64,
+                    activation: 'relu',
+                    inputShape: [13]
+                }));
+
+                // Hidden layer
+                model.add(tf.layers.dense({
+                    units: 32,
+                    activation: 'relu'
+                }));
+
+                // Output layer: 4 outputs (one for each action)
+                model.add(tf.layers.dense({
+                    units: 4,
+                    activation: 'linear'
+                }));
+
+                // Compile the model
+                model.compile({
+                    optimizer: tf.train.adam(0.001),
+                    loss: 'meanSquaredError'
+                });
+
+                console.log('Neural network model created and compiled successfully');
+
+                // Test the model with a dummy input to ensure it works
+                const dummyInput = tf.ones([1, 13]);
+                const dummyOutput = model.predict(dummyInput);
+                await dummyOutput.data(); // Force execution
+                dummyInput.dispose();
+                dummyOutput.dispose();
+
+                console.log('Model test successful');
+                return model;
+            } catch (error) {
+                console.error('Error creating neural network model:', error);
+                trainingStatus.textContent = 'Error creating model - using fallback';
+
+                // Create a dummy model that won't crash
+                return {
+                    predict: (input) => tf.tensor2d([[0.25, 0.25, 0.25, 0.25]]),
+                    fit: async () => ({ history: { loss: [1] } }),
+                    save: async () => ({}),
+                    compile: () => {}
+                };
+            }
+        }
+
+        // Get enhanced state representation for deep learning
+        function getDeepState(head) {
+            // Direction to food
+            const foodDir = {
+                x: Math.sign(food.x - head.x), // -1, 0, or 1
+                y: Math.sign(food.y - head.y)  // -1, 0, or 1
+            };
+
+            // Current snake direction
+            const snakeDir = {
+                x: direction.x,
+                y: direction.y
+            };
+
+            // Check for danger in each direction
+            const directions = [
+                { x: 0, y: -1, name: 'up' },    // Up
+                { x: 1, y: 0, name: 'right' },  // Right
+                { x: 0, y: 1, name: 'down' },   // Down
+                { x: -1, y: 0, name: 'left' }   // Left
+            ];
+
+            const danger = {};
+            const distanceToWall = {};
+
+            for (const dir of directions) {
+                // Check for immediate danger
+                const newPos = { x: head.x + dir.x, y: head.y + dir.y };
+                danger[dir.name] = checkCollision(newPos) ? 1 : 0;
+
+                // Calculate distance to wall
+                if (dir.name === 'up') {
+                    distanceToWall[dir.name] = head.y / gridHeight;
+                } else if (dir.name === 'right') {
+                    distanceToWall[dir.name] = (gridWidth - head.x - 1) / gridWidth;
+                } else if (dir.name === 'down') {
+                    distanceToWall[dir.name] = (gridHeight - head.y - 1) / gridHeight;
+                } else if (dir.name === 'left') {
+                    distanceToWall[dir.name] = head.x / gridWidth;
+                }
+            }
+
+            // Return state as array for neural network
+            return [
+                foodDir.x,
+                foodDir.y,
+                snakeDir.x,
+                snakeDir.y,
+                danger.up,
+                danger.right,
+                danger.down,
+                danger.left,
+                distanceToWall.up,
+                distanceToWall.right,
+                distanceToWall.down,
+                distanceToWall.left,
+                loopDetected ? 1 : 0
+            ];
+        }
+
+        // Add experience to replay memory
+        function addExperience(state, action, reward, nextState, done) {
+            // Add to replay memory
+            replayMemory.push({
+                state: state,
+                action: action,
+                reward: reward,
+                nextState: nextState,
+                done: done
+            });
+
+            // Limit replay memory size
+            if (replayMemory.length > replayMemorySize) {
+                replayMemory.shift();
+            }
+        }
+
+        // Train model on a batch of experiences
+        async function trainOnBatch() {
+            try {
+                // Need enough samples in replay memory
+                if (replayMemory.length < miniBatchSize) {
+                    return;
+                }
+
+                // Check if model is valid
+                if (!model || !model.fit) {
+                    console.warn('Cannot train - model not properly initialized');
+                    return;
+                }
+
+                // Sample random batch from replay memory
+                const batch = [];
+                const batchIndices = [];
+
+                while (batch.length < miniBatchSize) {
+                    const index = Math.floor(Math.random() * replayMemory.length);
+                    if (!batchIndices.includes(index)) {
+                        batchIndices.push(index);
+                        batch.push(replayMemory[index]);
+                    }
+                }
+
+                // Create tensors and perform training in a try-catch block
+                let states, nextStates, qValues, nextQValues, updatedQValues;
+
+                try {
+                    // Prepare tensors for training
+                    states = tf.tensor2d(batch.map(exp => exp.state));
+                    nextStates = tf.tensor2d(batch.map(exp => exp.nextState));
+
+                    // Predict Q-values for current states and next states
+                    qValues = model.predict(states);
+                    nextQValues = model.predict(nextStates);
+
+                    // Convert to arrays for manipulation
+                    const qValuesArray = await qValues.array();
+                    const nextQValuesArray = await nextQValues.array();
+
+                    // Update Q-values based on reward and next state
+                    batch.forEach((experience, index) => {
+                        if (experience.done) {
+                            // If terminal state, target is just the reward
+                            qValuesArray[index][experience.action] = experience.reward;
+                        } else {
+                            // Otherwise, target is reward + discount * max future Q-value
+                            const maxNextQ = Math.max(...nextQValuesArray[index]);
+                            qValuesArray[index][experience.action] = experience.reward + discountFactor * maxNextQ;
+                        }
+                    });
+
+                    // Train the model with updated Q-values
+                    updatedQValues = tf.tensor2d(qValuesArray);
+                    await model.fit(states, updatedQValues, {
+                        epochs: 1,
+                        batchSize: miniBatchSize,
+                        verbose: 0
+                    });
+                } catch (trainingError) {
+                    console.error('Error during training:', trainingError);
+                    // If we're in the middle of training, update the status
+                    if (isTraining) {
+                        trainingStatus.textContent = 'Training error - using fallback AI';
+                    }
+                } finally {
+                    // Clean up tensors to prevent memory leaks
+                    if (states) states.dispose();
+                    if (nextStates) nextStates.dispose();
+                    if (qValues) qValues.dispose();
+                    if (nextQValues) nextQValues.dispose();
+                    if (updatedQValues) updatedQValues.dispose();
+                }
+            } catch (error) {
+                console.error('Fatal error in trainOnBatch:', error);
+            }
+        }
+
+        // Run a single training episode (for both normal and turbo mode)
+        async function runTrainingEpisode(maxSteps = 2000, visualize = false) {
+            // Reset environment
+            let simulatedSnake = [{ x: 5, y: 5 }];
+            let simulatedFood = { x: 15, y: 15 };
+            let simulatedDirection = { x: 1, y: 0 };
+            let simulatedScore = 0;
+            let done = false;
+            let step = 0;
+            let loopDetectionHistory = new Set();
+            let simulatedLoopDetected = false;
+
+            // Get initial state
+            let state = getDeepState(simulatedSnake[0]);
+
+            // Run episode until done or max steps reached
+            while (!done && step < maxSteps) {
+                // Choose action using epsilon-greedy policy
+                let action;
+                if (Math.random() < explorationRate) {
+                    // Exploration: random action
+                    action = Math.floor(Math.random() * 4); // 0: up, 1: right, 2: down, 3: left
+                } else {
+                    // Exploitation: best action from model
+                    const stateTensor = tf.tensor2d([state]);
+                    const prediction = model.predict(stateTensor);
+                    const predictionArray = await prediction.array();
+                    action = predictionArray[0].indexOf(Math.max(...predictionArray[0]));
+
+                    // Clean up tensor
+                    stateTensor.dispose();
+                    prediction.dispose();
+                }
+
+                // Convert action index to direction
+                const actionDirections = [
+                    { x: 0, y: -1 }, // Up
+                    { x: 1, y: 0 },  // Right
+                    { x: 0, y: 1 },  // Down
+                    { x: -1, y: 0 }  // Left
+                ];
+
+                const newDirection = actionDirections[action];
+
+                // Don't allow 180-degree turns
+                const oppositeDirection = { x: -simulatedDirection.x, y: -simulatedDirection.y };
+                if (newDirection.x === oppositeDirection.x && newDirection.y === oppositeDirection.y) {
+                    // Skip this step if trying to go backwards
+                    continue;
+                }
+
+                simulatedDirection = newDirection;
+
+                // Move snake
+                const head = { ...simulatedSnake[0] };
+                head.x += simulatedDirection.x;
+                head.y += simulatedDirection.y;
+
+                // Check for collisions
+                let collision = false;
+                if (
+                    head.x < 0 ||
+                    head.y < 0 ||
+                    head.x >= gridWidth ||
+                    head.y >= gridHeight
+                ) {
+                    collision = true;
+                }
+
+                // Check for self collision
+                for (let i = 0; i < simulatedSnake.length; i++) {
+                    if (head.x === simulatedSnake[i].x && head.y === simulatedSnake[i].y) {
+                        collision = true;
+                        break;
+                    }
+                }
+
+                // Add new head
+                simulatedSnake.unshift(head);
+
+                // Loop detection
+                const posKey = `${head.x},${head.y}`;
+                if (loopDetectionHistory.has(posKey)) {
+                    simulatedLoopDetected = true;
+                }
+                loopDetectionHistory.add(posKey);
+
+                // Calculate reward
+                let reward;
+                if (collision) {
+                    reward = -1; // Penalty for collision
+                    done = true;
+                } else if (head.x === simulatedFood.x && head.y === simulatedFood.y) {
+                    reward = 1; // Reward for eating food
+                    simulatedScore += 10;
+
+                    // Place new food
+                    let validPosition = false;
+                    while (!validPosition) {
+                        simulatedFood = {
+                            x: Math.floor(Math.random() * gridWidth),
+                            y: Math.floor(Math.random() * gridHeight)
+                        };
+
+                        // Check if food is not on the snake
+                        validPosition = true;
+                        for (const segment of simulatedSnake) {
+                            if (segment.x === simulatedFood.x && segment.y === simulatedFood.y) {
+                                validPosition = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Reset loop detection after eating
+                    simulatedLoopDetected = false;
+                    loopDetectionHistory = new Set();
+                } else {
+                    // Penalty for loops
+                    if (simulatedLoopDetected) {
+                        reward = -0.2; // Larger penalty for loops
+                    } else {
+                        reward = -0.01; // Small penalty for each step to encourage efficiency
+                    }
+                    simulatedSnake.pop(); // Remove tail if no food eaten
+                }
+
+                // Get next state
+                const nextState = getDeepState(simulatedSnake[0]);
+
+                // Add to replay memory
+                addExperience(state, action, reward, nextState, done);
+
+                // Update state
+                state = nextState;
+
+                // Visualize if requested (for normal training mode)
+                if (visualize && step % 5 === 0) {
+                    // Update game state for visualization
+                    snake = [...simulatedSnake];
+                    food = {...simulatedFood};
+                    direction = {...simulatedDirection};
+                    score = simulatedScore;
+                    loopDetected = simulatedLoopDetected;
+
+                    // Draw current state
+                    draw();
+                    updateStats();
+
+                    // Allow UI to update
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+
+                step++;
+            }
+
+            // Return episode results
+            return {
+                score: simulatedScore,
+                steps: step,
+                done: done
+            };
+        }
+
+        // Run multiple episodes in parallel (for turbo mode)
+        async function runParallelEpisodes(numEpisodes, batchSize = 4) {
+            const results = [];
+            let episodesCompleted = 0;
+
+            while (episodesCompleted < numEpisodes) {
+                // Determine batch size for this iteration
+                const currentBatchSize = Math.min(batchSize, numEpisodes - episodesCompleted);
+
+                // Run episodes in parallel
+                const episodePromises = [];
+                for (let i = 0; i < currentBatchSize; i++) {
+                    episodePromises.push(runTrainingEpisode(2000, false));
+                }
+
+                // Wait for all episodes to complete
+                const batchResults = await Promise.all(episodePromises);
+                results.push(...batchResults);
+
+                // Train on accumulated experiences
+                await trainOnBatch();
+
+                // Update progress
+                episodesCompleted += currentBatchSize;
+                trainingEpisodesCompleted = episodesCompleted;
+                trainingProgress = Math.floor(episodesCompleted / numEpisodes * 100);
+
+                // Update training statistics
+                const scores = results.map(r => r.score);
+                const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                const maxScore = Math.max(...scores, 0);
+                trainingScores = scores;
+                trainingMaxScore = Math.max(trainingMaxScore, maxScore);
+
+                // Calculate episodes per second
+                const elapsedTime = (Date.now() - trainingStartTime) / 1000;
+                if (elapsedTime > 0) {
+                    episodesPerSecond = Math.round(episodesCompleted / elapsedTime * 10) / 10;
+                }
+
+                // Update UI
+                trainingProgressBar.style.width = `${trainingProgress}%`;
+                trainingStatus.textContent = `Training: ${trainingProgress}%`;
+                avgScoreValue.textContent = Math.round(avgScore * 10) / 10;
+                maxTrainingScoreValue.textContent = trainingMaxScore;
+                epsValue.textContent = episodesPerSecond;
+
+                // Allow UI to update
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            return results;
+        }
+
+        // Monitor GPU performance
+        function startGpuMonitoring() {
+            // Clear any existing interval
+            if (gpuMonitorInterval) {
+                clearInterval(gpuMonitorInterval);
+            }
+
+            // Update GPU status initially
+            updateGpuStatus();
+
+            // Set up monitoring interval
+            gpuMonitorInterval = setInterval(() => {
+                updateGpuStatus();
+            }, 2000); // Update every 2 seconds
+        }
+
+        // Stop GPU monitoring
+        function stopGpuMonitoring() {
+            if (gpuMonitorInterval) {
+                clearInterval(gpuMonitorInterval);
+                gpuMonitorInterval = null;
+            }
+        }
+
+        // Update GPU status display
+        async function updateGpuStatus() {
+            if (!tf) return false;
+
+            try {
+                // Wait for TensorFlow to be ready
+                await tf.ready();
+
+                // Get current backend
+                const backend = tf.getBackend();
+
+                // Check if using WebGL (GPU)
+                const isGpu = backend === 'webgl';
+
+                // Get memory info if available
+                let memoryInfo = '';
+                if (isGpu && tf.memory) {
+                    try {
+                        const mem = tf.memory();
+                        if (mem && mem.numBytesInGPU) {
+                            const gpuMemMB = Math.round(mem.numBytesInGPU / (1024 * 1024) * 10) / 10;
+                            memoryInfo = ` ${gpuMemMB}MB`;
+                        }
+                    } catch (memError) {
+                        console.warn('Could not get GPU memory info:', memError);
+                    }
+                }
+
+                // Create a small tensor and time operation to check performance
+                let opTime = 0;
+                try {
+                    // Use a smaller tensor size to avoid memory issues
+                    const startTime = performance.now();
+                    const testTensor = tf.ones([50, 50]); // Smaller tensor to avoid memory issues
+                    await testTensor.square().data();
+                    const endTime = performance.now();
+                    testTensor.dispose();
+
+                    opTime = Math.round((endTime - startTime) * 100) / 100;
+                } catch (tensorError) {
+                    console.warn('Error during tensor operation test:', tensorError);
+                    opTime = -1;
+                }
+
+                // Update GPU status display
+                if (isGpu) {
+                    if (gpuInfo && (gpuInfo.toLowerCase().includes('swiftshader') ||
+                                   gpuInfo.toLowerCase().includes('software') ||
+                                   gpuInfo.toLowerCase().includes('llvmpipe'))) {
+                        // Software renderer, not a real GPU
+                        gpuValue.textContent = `Software (${opTime}ms)`;
+                        gpuValue.style.color = '#FFA500'; // Orange for software renderer
+                        return false;
+                    } else {
+                        // Check if NVIDIA GPU
+                        const isNvidia = gpuInfo && gpuInfo.toLowerCase().includes('nvidia');
+                        gpuValue.textContent = `${isNvidia ? 'NVIDIA ' : ''}GPU${memoryInfo} (${opTime}ms)`;
+                        gpuValue.style.color = '#4CAF50'; // Green for GPU
+                        return true;
+                    }
+                } else {
+                    gpuValue.textContent = `CPU (${opTime}ms)`;
+                    gpuValue.style.color = '#f44336'; // Red for CPU
+                    return false;
+                }
+            } catch (e) {
+                console.error('Error monitoring GPU:', e);
+                gpuValue.textContent = 'Error';
+                gpuValue.style.color = '#f44336'; // Red for error
+                return false;
+            }
+        }
+
+        // Train the model on multiple episodes
+        async function trainModel(episodes) {
+            if (!model) {
+                model = createModel();
+            }
+
+            // Reset training statistics
+            trainingScores = [];
+            trainingMaxScore = 0;
+            trainingStartTime = Date.now();
+            trainingEpisodesCompleted = 0;
+            episodesPerSecond = 0;
+
+            isTraining = true;
+            trainingStatus.textContent = 'Training: 0%';
+            trainingProgressBar.style.width = '0%';
+
+            // Start GPU monitoring
+            startGpuMonitoring();
+
+            // Temporarily pause the game if running
+            const wasRunning = isGameRunning;
+            if (wasRunning) {
+                pauseGame();
+            }
+
+            // Determine training mode based on selected speed
+            const trainingMode = trainSpeed.value;
+            turboMode = (trainingMode === 'turbo');
+
+            try {
+                if (turboMode) {
+                    // Turbo mode: Run episodes in parallel without visualization
+                    await runParallelEpisodes(episodes, parallelWorkers);
+                } else {
+                    // Normal or fast mode: Run episodes sequentially with visualization
+                    const speedMultiplier = (trainingMode === 'fast') ? 10 : 1;
+
+                    for (let episode = 0; episode < episodes; episode++) {
+                        // Run a single episode
+                        const result = await runTrainingEpisode(2000, true);
+
+                        // Update training statistics
+                        trainingScores.push(result.score);
+                        trainingMaxScore = Math.max(trainingMaxScore, result.score);
+                        trainingEpisodesCompleted++;
+
+                        // Calculate episodes per second
+                        const elapsedTime = (Date.now() - trainingStartTime) / 1000;
+                        if (elapsedTime > 0) {
+                            episodesPerSecond = Math.round(trainingEpisodesCompleted / elapsedTime * 10) / 10;
+                        }
+
+                        // Update progress
+                        trainingProgress = Math.floor((episode + 1) / episodes * 100);
+                        trainingProgressBar.style.width = `${trainingProgress}%`;
+                        trainingStatus.textContent = `Training: ${trainingProgress}%`;
+
+                        // Update stats display
+                        const avgScore = trainingScores.reduce((a, b) => a + b, 0) / trainingScores.length;
+                        avgScoreValue.textContent = Math.round(avgScore * 10) / 10;
+                        maxTrainingScoreValue.textContent = trainingMaxScore;
+                        epsValue.textContent = episodesPerSecond;
+
+                        // Train on accumulated experiences
+                        await trainOnBatch();
+
+                        // Allow UI to update based on speed setting
+                        await new Promise(resolve => setTimeout(resolve, 100 / speedMultiplier));
+                    }
+                }
+
+                // Training complete
+                isTraining = false;
+                trainingStatus.textContent = `Trained on ${episodes} episodes`;
+
+                // Stop GPU monitoring
+                stopGpuMonitoring();
+
+                // Final GPU status update
+                updateGpuStatus();
+
+                // Resume game if it was running
+                if (wasRunning) {
+                    // Reset game state
+                    initGame();
+                    startGame();
+                }
+
+                // Reduce exploration rate after training
+                explorationRate = Math.max(0.05, explorationRate * 0.5);
+
+                // Return training stats
+                return {
+                    episodes: episodes,
+                    avgScore: trainingScores.reduce((a, b) => a + b, 0) / episodes,
+                    maxScore: trainingMaxScore,
+                    episodesPerSecond: episodesPerSecond
+                };
+            } catch (error) {
+                console.error('Training error:', error);
+                isTraining = false;
+                trainingStatus.textContent = `Training error: ${error.message}`;
+
+                // Stop GPU monitoring
+                stopGpuMonitoring();
+
+                // Resume game if it was running
+                if (wasRunning) {
+                    startGame();
+                }
+
+                throw error;
+            }
+        }
+
+        // Initialize the game
+        async function initGame() {
+            // Reset game state
+            snake = [{ x: 5, y: 5 }];
+            score = 0;
+            direction = { x: 1, y: 0 };
+            nextDirection = { x: 1, y: 0 };
+            gameSpeed = 100;
+            isGameOver = false;
+
+            // Reset learning state for this game
+            moveHistory = [];
+            positionHistory = new Set();
+            lastState = null;
+            lastAction = null;
+            loopDetected = false;
+            currentPath = [];
+
+            // Increment game count
+            if (score > 0) {
+                gameCount++;
+                // Reduce exploration rate as we play more games (minimum 0.05)
+                explorationRate = Math.max(0.05, 0.2 - (gameCount * 0.01));
+            }
+
+            // Initialize model if not already created
+            if (!model && aiLevel === "deep") {
+                trainingStatus.textContent = 'Initializing model...';
+                model = await createModel();
+                trainingStatus.textContent = 'Model ready';
+            }
+
+            // Place initial food
+            placeFood();
+
+            // Update UI
+            updateStats();
+            gameOverScreen.style.display = 'none';
+
+            // Draw initial state
+            draw();
+        }
+
+        // Start the game loop
+        async function startGame() {
+            if (isGameRunning) return;
+
+            // Make sure initialization is complete
+            if (!snake || snake.length === 0) {
+                await initGame();
+            }
+
+            isGameRunning = true;
+            gameInterval = setInterval(gameLoop, gameSpeed);
+            startBtn.textContent = 'Pause Game';
+        }
+
+        // Pause the game
+        function pauseGame() {
+            if (!isGameRunning) return;
+
+            isGameRunning = false;
+            clearInterval(gameInterval);
+            startBtn.textContent = 'Resume Game';
+        }
+
+        // Toggle the game state (start/pause)
+        function toggleGame() {
+            if (isGameOver) {
+                initGame();
+                startGame();
+                return;
+            }
+
+            if (isGameRunning) {
+                pauseGame();
+            } else {
+                startGame();
+            }
+        }
+
+        // This function is replaced by the one below
+
+        // Reset the game
+        function resetGame() {
+            pauseGame();
+            initGame();
+        }
+
+        // Main game loop
+        function gameLoop() {
+            if (isAIActive) {
+                makeAIDecision();
+            }
+
+            update();
+            draw();
+        }
+
+        // Update game state
+        function update() {
+            // Update direction
+            direction = { ...nextDirection };
+
+            // Calculate new head position
+            const head = { ...snake[0] };
+            head.x += direction.x;
+            head.y += direction.y;
+
+            // Check for collisions
+            if (checkCollision(head)) {
+                gameOver();
+                return;
+            }
+
+            // Add new head
+            snake.unshift(head);
+
+            // For learning AI: track position history to detect loops
+            if (aiLevel === "learning") {
+                // Create a key for the current position
+                const posKey = `${head.x},${head.y}`;
+
+                // Add to move history for loop detection
+                moveHistory.push(posKey);
+                if (moveHistory.length > 50) { // Keep only recent moves
+                    moveHistory.shift();
+                }
+
+                // Check for loops (same position visited multiple times)
+                if (positionHistory.has(posKey)) {
+                    // Count occurrences in move history
+                    let occurrences = 0;
+                    for (const move of moveHistory) {
+                        if (move === posKey) occurrences++;
+                    }
+
+                    // If position visited more than twice recently, likely in a loop
+                    if (occurrences > 2) {
+                        loopDetected = true;
+
+                        // Penalize the last action if in learning mode
+                        if (lastState && lastAction) {
+                            const stateKey = getStateKey(lastState);
+                            if (!qTable[stateKey]) {
+                                qTable[stateKey] = { up: 0, right: 0, down: 0, left: 0 };
+                            }
+                            // Apply a negative reward for actions that led to loops
+                            qTable[stateKey][lastAction] -= 0.5;
+                        }
+                    }
+                }
+
+                // Add to position history
+                positionHistory.add(posKey);
+            }
+
+            // Check if food is eaten
+            if (head.x === food.x && head.y === food.y) {
+                // Increase score
+                score += 10;
+
+                // For learning AI: reward the action that led to food
+                if (aiLevel === "learning" && lastState && lastAction) {
+                    const stateKey = getStateKey(lastState);
+                    if (!qTable[stateKey]) {
+                        qTable[stateKey] = { up: 0, right: 0, down: 0, left: 0 };
+                    }
+                    // Apply a positive reward for actions that led to food
+                    qTable[stateKey][lastAction] += 1.0;
+                }
+                // For deep learning AI: add experience to replay memory
+                else if (aiLevel === "deep" && lastState && lastAction !== null) {
+                    // Get next state
+                    const nextState = getDeepState(head);
+                    // Add positive reward experience
+                    addExperience(lastState, lastAction, 1.0, nextState, false);
+                    // Train on batch occasionally
+                    if (replayMemory.length >= miniBatchSize && Math.random() < 0.1) {
+                        trainOnBatch().catch(err => console.error('Training error:', err));
+                    }
+                }
+
+                // Increase speed every 5 food items
+                if (score % 50 === 0 && gameSpeed > 30) {
+                    gameSpeed -= 10;
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(gameLoop, gameSpeed);
+                }
+
+                // Place new food
+                placeFood();
+
+                // Reset loop detection after eating food
+                loopDetected = false;
+                if (aiLevel === "learning") {
+                    moveHistory = [];
+                }
+            } else {
+                // Remove tail if no food eaten
+                snake.pop();
+
+                // For learning AI: small reward for staying alive
+                if (aiLevel === "learning" && lastState && lastAction) {
+                    const stateKey = getStateKey(lastState);
+                    if (!qTable[stateKey]) {
+                        qTable[stateKey] = { up: 0, right: 0, down: 0, left: 0 };
+                    }
+                    // Small positive reward for surviving
+                    qTable[stateKey][lastAction] += 0.01;
+                }
+                // For deep learning AI: small reward for surviving
+                else if (aiLevel === "deep" && lastState && lastAction !== null) {
+                    // Get next state
+                    const nextState = getDeepState(head);
+                    // Add small survival reward
+                    addExperience(lastState, lastAction, 0.01, nextState, false);
+
+                    // Occasionally train on batch
+                    if (replayMemory.length >= miniBatchSize && Math.random() < 0.01) {
+                        trainOnBatch().catch(err => console.error('Training error:', err));
+                    }
+                }
+            }
+
+            // Update stats
+            updateStats();
+        }
+
+        // Draw game elements
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#0f0f1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = 1;
+
+            // Vertical lines
+            for (let x = 0; x <= canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            // Horizontal lines
+            for (let y = 0; y <= canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw AI path if available and AI is active
+            if (isAIActive && currentPath.length > 0 && aiLevel === "advanced") {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                for (const pathNode of currentPath) {
+                    ctx.fillRect(
+                        pathNode.x * gridSize + 2,
+                        pathNode.y * gridSize + 2,
+                        gridSize - 4,
+                        gridSize - 4
+                    );
+                }
+            }
+
+            // Visualize learning state if learning AI is active
+            if (isAIActive && (aiLevel === "learning" || aiLevel === "deep")) {
+                // Highlight positions in the move history to show potential loops
+                if (moveHistory.length > 0) {
+                    ctx.fillStyle = 'rgba(255, 255, 100, 0.1)';
+                    for (const posKey of moveHistory) {
+                        const [x, y] = posKey.split(',').map(Number);
+                        ctx.fillRect(
+                            x * gridSize + 2,
+                            y * gridSize + 2,
+                            gridSize - 4,
+                            gridSize - 4
+                        );
+                    }
+                }
+
+                // Highlight loop detection with a warning color
+                if (loopDetected) {
+                    ctx.fillStyle = 'rgba(255, 50, 50, 0.2)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
+                // Visualize Q-values for current position if available
+                const head = snake[0];
+                const currentState = getState(head);
+                const stateKey = getStateKey(currentState);
+
+                if (qTable[stateKey]) {
+                    const qValues = qTable[stateKey];
+                    const directions = [
+                        { key: 'up', x: 0, y: -1 },
+                        { key: 'right', x: 1, y: 0 },
+                        { key: 'down', x: 0, y: 1 },
+                        { key: 'left', x: -1, y: 0 }
+                    ];
+
+                    // Draw Q-values as colored arrows
+                    for (const dir of directions) {
+                        const value = qValues[dir.key] || 0;
+                        const intensity = Math.min(1, Math.max(0, (value + 1) / 2)); // Map -1..1 to 0..1
+
+                        // Skip drawing negative values
+                        if (value <= -0.5) continue;
+
+                        // Calculate position for the arrow
+                        const centerX = head.x * gridSize + gridSize / 2;
+                        const centerY = head.y * gridSize + gridSize / 2;
+                        const targetX = centerX + dir.x * gridSize * 0.4;
+                        const targetY = centerY + dir.y * gridSize * 0.4;
+
+                        // Draw arrow with color based on Q-value
+                        ctx.strokeStyle = `rgba(0, ${Math.floor(intensity * 255)}, 0, ${intensity * 0.8})`;
+                        ctx.lineWidth = 2 + intensity * 3;
+
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY);
+                        ctx.lineTo(targetX, targetY);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw food
+            ctx.fillStyle = '#ff5555';
+            ctx.beginPath();
+            ctx.arc(
+                food.x * gridSize + gridSize / 2,
+                food.y * gridSize + gridSize / 2,
+                gridSize / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+
+            // Draw snake
+            snake.forEach((segment, index) => {
+                // Gradient color from head to tail
+                const hue = 120 + (index * 5) % 60;
+                ctx.fillStyle = `hsl(${hue}, 100%, ${index === 0 ? 60 : 50}%)`;
+
+                // Draw rounded rectangle for segments
+                roundRect(
+                    ctx,
+                    segment.x * gridSize + 1,
+                    segment.y * gridSize + 1,
+                    gridSize - 2,
+                    gridSize - 2,
+                    index === 0 ? 8 : 4
+                );
+
+                // Draw eyes on the head
+                if (index === 0) {
+                    ctx.fillStyle = '#000';
+
+                    // Determine eye positions based on direction
+                    let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
+
+                    if (direction.x === 1) { // Right
+                        leftEyeX = segment.x * gridSize + gridSize * 0.7;
+                        leftEyeY = segment.y * gridSize + gridSize * 0.3;
+                        rightEyeX = segment.x * gridSize + gridSize * 0.7;
+                        rightEyeY = segment.y * gridSize + gridSize * 0.7;
+                    } else if (direction.x === -1) { // Left
+                        leftEyeX = segment.x * gridSize + gridSize * 0.3;
+                        leftEyeY = segment.y * gridSize + gridSize * 0.3;
+                        rightEyeX = segment.x * gridSize + gridSize * 0.3;
+                        rightEyeY = segment.y * gridSize + gridSize * 0.7;
+                    } else if (direction.y === -1) { // Up
+                        leftEyeX = segment.x * gridSize + gridSize * 0.3;
+                        leftEyeY = segment.y * gridSize + gridSize * 0.3;
+                        rightEyeX = segment.x * gridSize + gridSize * 0.7;
+                        rightEyeY = segment.y * gridSize + gridSize * 0.3;
+                    } else if (direction.y === 1) { // Down
+                        leftEyeX = segment.x * gridSize + gridSize * 0.3;
+                        leftEyeY = segment.y * gridSize + gridSize * 0.7;
+                        rightEyeX = segment.x * gridSize + gridSize * 0.7;
+                        rightEyeY = segment.y * gridSize + gridSize * 0.7;
+                    }
+
+                    // Draw eyes
+                    ctx.beginPath();
+                    ctx.arc(leftEyeX, leftEyeY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(rightEyeX, rightEyeY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Helper function to draw rounded rectangles
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Place food at a random position
+        function placeFood() {
+            let validPosition = false;
+
+            while (!validPosition) {
+                food = {
+                    x: Math.floor(Math.random() * gridWidth),
+                    y: Math.floor(Math.random() * gridHeight)
+                };
+
+                // Check if food is not on the snake
+                validPosition = true;
+                for (const segment of snake) {
+                    if (segment.x === food.x && segment.y === food.y) {
+                        validPosition = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Check for collisions
+        function checkCollision(position) {
+            // Check wall collision
+            if (
+                position.x < 0 ||
+                position.y < 0 ||
+                position.x >= gridWidth ||
+                position.y >= gridHeight
+            ) {
+                return true;
+            }
+
+            // Check self collision (skip the tail as it will move)
+            for (let i = 0; i < snake.length - 1; i++) {
+                if (position.x === snake[i].x && position.y === snake[i].y) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Game over
+        function gameOver() {
+            pauseGame();
+            isGameOver = true;
+
+            // Learning: penalize the last state-action pair that led to game over
+            if (aiLevel === "learning" && lastState && lastAction) {
+                const stateKey = getStateKey(lastState);
+                if (!qTable[stateKey]) {
+                    qTable[stateKey] = { up: 0, right: 0, down: 0, left: 0 };
+                }
+                // Apply a large negative reward for actions that led to death
+                qTable[stateKey][lastAction] -= 1.0;
+            }
+            // For deep learning AI: add negative experience to replay memory
+            else if (aiLevel === "deep" && lastState && lastAction !== null) {
+                // Create a dummy next state (doesn't matter for terminal states)
+                const nextState = lastState;
+                // Add negative reward experience with terminal state
+                addExperience(lastState, lastAction, -1.0, nextState, true);
+                // Train on batch to learn from this experience
+                if (replayMemory.length >= miniBatchSize) {
+                    trainOnBatch().catch(err => console.error('Training error:', err));
+                }
+            }
+
+            // Increment game count for learning
+            gameCount++;
+
+            // Adjust exploration rate based on games played
+            explorationRate = Math.max(0.05, 0.2 - (gameCount * 0.005));
+
+            // Show game over screen
+            gameOverScreen.style.display = 'block';
+            finalScore.textContent = `Score: ${score}`;
+
+            // Update stats
+            updateStats();
+        }
+
+        // Update stats display
+        function updateStats() {
+            // Update basic stats
+            scoreValue.textContent = score;
+            lengthValue.textContent = snake.length;
+            speedValue.textContent = `${Math.round((100 / gameSpeed) * 100) / 100}x`;
+
+            // Update learning stats
+            highScore = Math.max(highScore, score);
+            highScoreValue.textContent = highScore;
+            gameCountValue.textContent = gameCount;
+        }
+
+        // Priority Queue implementation for A* algorithm
+        class PriorityQueue {
+            constructor() {
+                this.elements = [];
+            }
+
+            enqueue(element, priority) {
+                this.elements.push({ element, priority });
+                this.elements.sort((a, b) => a.priority - b.priority);
+            }
+
+            dequeue() {
+                return this.elements.shift().element;
+            }
+
+            isEmpty() {
+                return this.elements.length === 0;
+            }
+        }
+
+        // A* pathfinding algorithm
+        function findPathAStar(start, goal) {
+            // Create open and closed sets
+            const openSet = new PriorityQueue();
+            const closedSet = new Set();
+            const cameFrom = new Map();
+            const gScore = new Map();
+            const fScore = new Map();
+
+            // Helper function to get position key
+            const getKey = (pos) => `${pos.x},${pos.y}`;
+
+            // Initialize scores
+            gScore.set(getKey(start), 0);
+            fScore.set(getKey(start), heuristic(start, goal));
+
+            // Add start to open set
+            openSet.enqueue(start, fScore.get(getKey(start)));
+
+            // Directions to check
+            const directions = [
+                { x: 0, y: -1 },  // Up
+                { x: 1, y: 0 },   // Right
+                { x: 0, y: 1 },   // Down
+                { x: -1, y: 0 }   // Left
+            ];
+
+            while (!openSet.isEmpty()) {
+                const current = openSet.dequeue();
+                const currentKey = getKey(current);
+
+                // If we reached the goal
+                if (current.x === goal.x && current.y === goal.y) {
+                    // Reconstruct path
+                    const path = [];
+                    let currentPos = current;
+
+                    while (getKey(currentPos) !== getKey(start)) {
+                        path.unshift(currentPos);
+                        currentPos = cameFrom.get(getKey(currentPos));
+                    }
+
+                    return path;
+                }
+
+                // Add current to closed set
+                closedSet.add(currentKey);
+
+                // Check all neighbors
+                for (const dir of directions) {
+                    const neighbor = { x: current.x + dir.x, y: current.y + dir.y };
+                    const neighborKey = getKey(neighbor);
+
+                    // Skip if in closed set or would collide
+                    if (
+                        closedSet.has(neighborKey) ||
+                        neighbor.x < 0 ||
+                        neighbor.y < 0 ||
+                        neighbor.x >= gridWidth ||
+                        neighbor.y >= gridHeight ||
+                        isSnakeSegment(neighbor)
+                    ) {
+                        continue;
+                    }
+
+                    // Calculate tentative g score
+                    const tentativeGScore = (gScore.get(currentKey) || Infinity) + 1;
+
+                    // If this path is better than previous
+                    if (tentativeGScore < (gScore.get(neighborKey) || Infinity)) {
+                        // Update path and scores
+                        cameFrom.set(neighborKey, current);
+                        gScore.set(neighborKey, tentativeGScore);
+                        fScore.set(neighborKey, tentativeGScore + heuristic(neighbor, goal));
+
+                        // Add to open set if not already there
+                        if (!closedSet.has(neighborKey)) {
+                            openSet.enqueue(neighbor, fScore.get(neighborKey));
+                        }
+                    }
+                }
+            }
+
+            // No path found
+            return [];
+        }
+
+        // Manhattan distance heuristic
+        function heuristic(a, b) {
+            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        }
+
+        // Check if position contains a snake segment
+        function isSnakeSegment(pos) {
+            for (const segment of snake) {
+                if (segment.x === pos.x && segment.y === pos.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Flood fill algorithm to check if a move leads to a dead end
+        function floodFill(startPos) {
+            const visited = new Set();
+            const queue = [startPos];
+            const getKey = (pos) => `${pos.x},${pos.y}`;
+
+            // Add start position to visited
+            visited.add(getKey(startPos));
+
+            // Directions to check
+            const directions = [
+                { x: 0, y: -1 },  // Up
+                { x: 1, y: 0 },   // Right
+                { x: 0, y: 1 },   // Down
+                { x: -1, y: 0 }   // Left
+            ];
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+
+                // Check all neighbors
+                for (const dir of directions) {
+                    const neighbor = { x: current.x + dir.x, y: current.y + dir.y };
+                    const neighborKey = getKey(neighbor);
+
+                    // Skip if visited, out of bounds, or contains snake segment
+                    if (
+                        visited.has(neighborKey) ||
+                        neighbor.x < 0 ||
+                        neighbor.y < 0 ||
+                        neighbor.x >= gridWidth ||
+                        neighbor.y >= gridHeight ||
+                        isSnakeSegment(neighbor)
+                    ) {
+                        continue;
+                    }
+
+                    // Add to visited and queue
+                    visited.add(neighborKey);
+                    queue.push(neighbor);
+                }
+            }
+
+            // Return the number of cells we could reach
+            return visited.size;
+        }
+
+        // Simulate a move to see if it leads to a dead end
+        function simulateMove(moveDir) {
+            const head = snake[0];
+            const newHead = { x: head.x + moveDir.x, y: head.y + moveDir.y };
+
+            // Create a copy of the snake for simulation
+            const snakeCopy = [newHead, ...snake.slice(0, -1)];
+
+            // Check if this move would result in a collision
+            if (
+                newHead.x < 0 ||
+                newHead.y < 0 ||
+                newHead.x >= gridWidth ||
+                newHead.y >= gridHeight
+            ) {
+                return { valid: false, score: -Infinity };
+            }
+
+            // Check for self collision
+            for (let i = 1; i < snake.length - 1; i++) {
+                if (newHead.x === snake[i].x && newHead.y === snake[i].y) {
+                    return { valid: false, score: -Infinity };
+                }
+            }
+
+            // Calculate available space after move
+            const availableSpace = floodFill(newHead);
+
+            // Calculate distance to food
+            const distanceToFood = Math.abs(newHead.x - food.x) + Math.abs(newHead.y - food.y);
+
+            // Calculate score based on available space and distance to food
+            const score = availableSpace - distanceToFood * 0.5;
+
+            return { valid: true, score };
+        }
+
+        // Basic AI decision making (greedy algorithm)
+        function makeBasicAIDecision() {
+            const head = snake[0];
+            const possibleMoves = [];
+
+            // Check all four directions
+            const directions = [
+                { x: 0, y: -1, name: 'up' },    // Up
+                { x: 1, y: 0, name: 'right' },  // Right
+                { x: 0, y: 1, name: 'down' },   // Down
+                { x: -1, y: 0, name: 'left' }   // Left
+            ];
+
+            // Don't allow 180-degree turns
+            const oppositeDirection = { x: -direction.x, y: -direction.y };
+
+            // Evaluate each possible move
+            for (const dir of directions) {
+                // Skip the opposite direction (can't turn 180 degrees)
+                if (dir.x === oppositeDirection.x && dir.y === oppositeDirection.y) {
+                    continue;
+                }
+
+                const newPos = { x: head.x + dir.x, y: head.y + dir.y };
+
+                // Check if this move would result in a collision
+                if (checkCollision(newPos)) {
+                    continue;
+                }
+
+                // Calculate Manhattan distance to food
+                const distanceToFood = Math.abs(newPos.x - food.x) + Math.abs(newPos.y - food.y);
+
+                // Check if this move would trap the snake
+                const dangerLevel = evaluateDanger(newPos, dir);
+
+                // Add to possible moves with score (lower is better)
+                possibleMoves.push({
+                    direction: dir,
+                    score: distanceToFood + dangerLevel * 2
+                });
+            }
+
+            // Sort moves by score (lowest first)
+            possibleMoves.sort((a, b) => a.score - b.score);
+
+            // Choose the best move if available
+            if (possibleMoves.length > 0) {
+                nextDirection = possibleMoves[0].direction;
+            }
+            // If no safe moves, just continue in current direction
+        }
+
+        // Evaluate how dangerous a move is (higher = more dangerous)
+        function evaluateDanger(position, moveDirection) {
+            let danger = 0;
+
+            // Check if moving toward a wall
+            if (position.x <= 1 || position.x >= gridWidth - 2 ||
+                position.y <= 1 || position.y >= gridHeight - 2) {
+                danger += 1;
+            }
+
+            // Check if moving into a corner
+            const nextPosition = {
+                x: position.x + moveDirection.x,
+                y: position.y + moveDirection.y
+            };
+
+            // Count how many adjacent cells are blocked
+            let blockedCount = 0;
+
+            // Check all adjacent cells
+            const adjacentDirections = [
+                { x: 0, y: -1 },  // Up
+                { x: 1, y: 0 },   // Right
+                { x: 0, y: 1 },   // Down
+                { x: -1, y: 0 }   // Left
+            ];
+
+            for (const dir of adjacentDirections) {
+                const adjPos = { x: nextPosition.x + dir.x, y: nextPosition.y + dir.y };
+
+                // Check if this position would be a collision
+                if (
+                    adjPos.x < 0 ||
+                    adjPos.y < 0 ||
+                    adjPos.x >= gridWidth ||
+                    adjPos.y >= gridHeight
+                ) {
+                    blockedCount++;
+                    continue;
+                }
+
+                // Check if snake body is in this position
+                for (const segment of snake) {
+                    if (segment.x === adjPos.x && segment.y === adjPos.y) {
+                        blockedCount++;
+                        break;
+                    }
+                }
+            }
+
+            // Add danger based on blocked adjacent cells
+            danger += blockedCount * 0.5;
+
+            return danger;
+        }
+
+        // Advanced AI decision making
+        function makeAdvancedAIDecision() {
+            const head = snake[0];
+
+            // Check all four directions
+            const directions = [
+                { x: 0, y: -1, name: 'up' },    // Up
+                { x: 1, y: 0, name: 'right' },  // Right
+                { x: 0, y: 1, name: 'down' },   // Down
+                { x: -1, y: 0, name: 'left' }   // Left
+            ];
+
+            // Don't allow 180-degree turns
+            const oppositeDirection = { x: -direction.x, y: -direction.y };
+
+            // Try to find a path to food using A*
+            const path = findPathAStar(head, food);
+            currentPath = path; // Store path for visualization
+
+            // If we found a path to food and it's not empty
+            if (path.length > 0) {
+                // Get the first step in the path
+                const nextStep = path[0];
+
+                // Determine which direction to move
+                for (const dir of directions) {
+                    if (head.x + dir.x === nextStep.x && head.y + dir.y === nextStep.y) {
+                        // Make sure it's not the opposite direction
+                        if (dir.x !== oppositeDirection.x || dir.y !== oppositeDirection.y) {
+                            // Simulate the move to check if it's safe
+                            const simulation = simulateMove(dir);
+
+                            if (simulation.valid && simulation.score > 0) {
+                                nextDirection = dir;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If A* didn't find a good path, use fallback strategy
+            const moveOptions = [];
+
+            // Evaluate each possible move
+            for (const dir of directions) {
+                // Skip the opposite direction (can't turn 180 degrees)
+                if (dir.x === oppositeDirection.x && dir.y === oppositeDirection.y) {
+                    continue;
+                }
+
+                // Simulate this move
+                const simulation = simulateMove(dir);
+
+                if (simulation.valid) {
+                    moveOptions.push({
+                        direction: dir,
+                        score: simulation.score
+                    });
+                }
+            }
+
+            // Sort moves by score (highest first)
+            moveOptions.sort((a, b) => b.score - a.score);
+
+            // Choose the best move if available
+            if (moveOptions.length > 0) {
+                nextDirection = moveOptions[0].direction;
+            }
+            // If no safe moves, just continue in current direction (though we'll likely crash)
+        }
+
+        // Get state representation for Q-learning
+        function getState(head) {
+            // Create a simplified state representation
+            // We'll use: food direction, danger in each direction, and loop detection
+
+            const foodDir = {
+                x: Math.sign(food.x - head.x), // -1, 0, or 1
+                y: Math.sign(food.y - head.y)  // -1, 0, or 1
+            };
+
+            // Check for danger in each direction
+            const directions = [
+                { x: 0, y: -1, name: 'up' },    // Up
+                { x: 1, y: 0, name: 'right' },  // Right
+                { x: 0, y: 1, name: 'down' },   // Down
+                { x: -1, y: 0, name: 'left' }   // Left
+            ];
+
+            const danger = {};
+            for (const dir of directions) {
+                const newPos = { x: head.x + dir.x, y: head.y + dir.y };
+                danger[dir.name] = checkCollision(newPos) ? 1 : 0;
+            }
+
+            return {
+                foodDirX: foodDir.x,
+                foodDirY: foodDir.y,
+                dangerUp: danger.up,
+                dangerRight: danger.right,
+                dangerDown: danger.down,
+                dangerLeft: danger.left,
+                loopDetected: loopDetected ? 1 : 0
+            };
+        }
+
+        // Convert state object to string key for Q-table
+        function getStateKey(state) {
+            return `${state.foodDirX},${state.foodDirY},${state.dangerUp},${state.dangerRight},${state.dangerDown},${state.dangerLeft},${state.loopDetected}`;
+        }
+
+        // Learning AI decision making using Q-learning
+        function makeLearningAIDecision() {
+            const head = snake[0];
+
+            // Get current state
+            const currentState = getState(head);
+            const stateKey = getStateKey(currentState);
+
+            // Initialize Q-values for this state if not exists
+            if (!qTable[stateKey]) {
+                qTable[stateKey] = { up: 0, right: 0, down: 0, left: 0 };
+            }
+
+            // Possible actions
+            const actions = ['up', 'right', 'down', 'left'];
+            const directions = {
+                up: { x: 0, y: -1 },
+                right: { x: 1, y: 0 },
+                down: { x: 0, y: 1 },
+                left: { x: -1, y: 0 }
+            };
+
+            // Don't allow 180-degree turns
+            const oppositeDirection = { x: -direction.x, y: -direction.y };
+            const oppositeActions = {
+                up: 'down',
+                right: 'left',
+                down: 'up',
+                left: 'right'
+            };
+
+            // Determine current direction name
+            let currentDirName = 'right'; // Default
+            for (const [name, dir] of Object.entries(directions)) {
+                if (dir.x === direction.x && dir.y === direction.y) {
+                    currentDirName = name;
+                    break;
+                }
+            }
+
+            // Filter out invalid actions (opposite direction and collisions)
+            const validActions = actions.filter(action => {
+                // Can't go in opposite direction
+                if (action === oppositeActions[currentDirName]) {
+                    return false;
+                }
+
+                // Check if this move would result in a collision
+                const newPos = {
+                    x: head.x + directions[action].x,
+                    y: head.y + directions[action].y
+                };
+
+                return !checkCollision(newPos);
+            });
+
+            // Choose action using epsilon-greedy policy
+            let chosenAction;
+
+            // If in a loop, try to break out by avoiding the highest Q-value
+            if (loopDetected && Math.random() < 0.8) {
+                // Sort actions by Q-value (lowest first to break loops)
+                const sortedActions = [...validActions].sort(
+                    (a, b) => qTable[stateKey][a] - qTable[stateKey][b]
+                );
+                chosenAction = sortedActions[0] || actions[Math.floor(Math.random() * actions.length)];
+            }
+            // Exploration: choose random action
+            else if (Math.random() < explorationRate) {
+                chosenAction = validActions[Math.floor(Math.random() * validActions.length)];
+                // If no valid actions, choose any action (will likely die but that's part of learning)
+                if (!chosenAction) {
+                    chosenAction = actions[Math.floor(Math.random() * actions.length)];
+                }
+            }
+            // Exploitation: choose best action based on Q-values
+            else {
+                // Find action with highest Q-value
+                let bestAction = null;
+                let bestValue = -Infinity;
+
+                for (const action of validActions) {
+                    const qValue = qTable[stateKey][action];
+                    if (qValue > bestValue) {
+                        bestValue = qValue;
+                        bestAction = action;
+                    }
+                }
+
+                // If no valid actions or all have negative values, try random
+                if (bestAction === null || bestValue < -0.5) {
+                    // If in a desperate situation, try A* pathfinding as a fallback
+                    const path = findPathAStar(head, food);
+                    if (path.length > 0) {
+                        // Get the first step in the path
+                        const nextStep = path[0];
+
+                        // Determine which direction to move
+                        for (const [name, dir] of Object.entries(directions)) {
+                            if (head.x + dir.x === nextStep.x && head.y + dir.y === nextStep.y) {
+                                bestAction = name;
+                                break;
+                            }
+                        }
+                    }
+
+                    // If still no good action, choose random valid action
+                    if (bestAction === null) {
+                        bestAction = validActions[Math.floor(Math.random() * validActions.length)];
+                    }
+
+                    // If still no valid actions, choose any action
+                    if (bestAction === null) {
+                        bestAction = actions[Math.floor(Math.random() * actions.length)];
+                    }
+                }
+
+                chosenAction = bestAction;
+            }
+
+            // Store state and action for next update
+            lastState = currentState;
+            lastAction = chosenAction;
+
+            // Set next direction based on chosen action
+            nextDirection = directions[chosenAction] || { x: 1, y: 0 }; // Default to right if something goes wrong
+        }
+
+        // Deep learning AI decision making
+        async function makeDeepAIDecision() {
+            try {
+                // If model not initialized, create it
+                if (!model) {
+                    model = createModel();
+                }
+
+                const head = snake[0];
+
+                // Get current state
+                const state = getDeepState(head);
+
+                // Convert state to tensor
+                let stateTensor, prediction, predictionArray;
+                try {
+                    stateTensor = tf.tensor2d([state]);
+
+                    // Get action predictions from model
+                    prediction = model.predict(stateTensor);
+                    predictionArray = await prediction.array();
+                } catch (tensorError) {
+                    console.error('Error during tensor operations:', tensorError);
+                    // Fall back to random action
+                    makeBasicAIDecision();
+                    return;
+                }
+
+                // Get action with highest Q-value
+                let actionIndex;
+
+                // Use epsilon-greedy policy for exploration
+                if (Math.random() < explorationRate) {
+                    // Random action
+                    actionIndex = Math.floor(Math.random() * 4);
+                } else {
+                    // Best action from model
+                    actionIndex = predictionArray[0].indexOf(Math.max(...predictionArray[0]));
+                }
+
+                // Convert action index to direction
+                const actionDirections = [
+                    { x: 0, y: -1 }, // Up
+                    { x: 1, y: 0 },  // Right
+                    { x: 0, y: 1 },  // Down
+                    { x: -1, y: 0 }  // Left
+                ];
+
+                const newDirection = actionDirections[actionIndex];
+
+                // Don't allow 180-degree turns
+                const oppositeDirection = { x: -direction.x, y: -direction.y };
+                if (newDirection.x === oppositeDirection.x && newDirection.y === oppositeDirection.y) {
+                    // If trying to go backwards, choose a different direction
+                    const validDirections = actionDirections.filter(dir =>
+                        !(dir.x === oppositeDirection.x && dir.y === oppositeDirection.y)
+                    );
+
+                    // Find best valid direction
+                    let bestDir = validDirections[0];
+                    let bestValue = -Infinity;
+
+                    for (let i = 0; i < validDirections.length; i++) {
+                        const dir = validDirections[i];
+                        const dirIndex = actionDirections.findIndex(d => d.x === dir.x && d.y === dir.y);
+                        const value = predictionArray[0][dirIndex];
+
+                        if (value > bestValue) {
+                            bestValue = value;
+                            bestDir = dir;
+                        }
+                    }
+
+                    nextDirection = bestDir;
+                } else {
+                    nextDirection = newDirection;
+                }
+
+                // Store state and action for learning
+                lastState = state;
+                lastAction = actionIndex;
+
+                // Clean up tensors
+                if (stateTensor) stateTensor.dispose();
+                if (prediction) prediction.dispose();
+
+                // Clear path visualization
+                currentPath = [];
+            } catch (error) {
+                console.error('Deep AI decision error:', error);
+                // Fall back to basic AI if deep learning fails
+                makeBasicAIDecision();
+            }
+        }
+
+        // Main AI decision making function that chooses between algorithms
+        function makeAIDecision() {
+            if (aiLevel === "deep") {
+                // Deep learning AI (async, but we can't await here)
+                makeDeepAIDecision().catch(err => console.error('Deep AI error:', err));
+            } else if (aiLevel === "learning") {
+                makeLearningAIDecision();
+                currentPath = []; // Clear path visualization for learning AI
+            } else if (aiLevel === "advanced") {
+                makeAdvancedAIDecision();
+            } else {
+                makeBasicAIDecision();
+                currentPath = []; // Clear path visualization for basic AI
+            }
+        }
+
+        // Handle keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (isAIActive) return; // Ignore keyboard when AI is active
+
+            // Prevent opposite direction
+            const oppositeDirection = { x: -direction.x, y: -direction.y };
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    if (direction.y !== 1) { // Not going down
+                        nextDirection = { x: 0, y: -1 };
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (direction.x !== -1) { // Not going left
+                        nextDirection = { x: 1, y: 0 };
+                    }
+                    break;
+                case 'ArrowDown':
+                    if (direction.y !== -1) { // Not going up
+                        nextDirection = { x: 0, y: 1 };
+                    }
+                    break;
+                case 'ArrowLeft':
+                    if (direction.x !== 1) { // Not going right
+                        nextDirection = { x: -1, y: 0 };
+                    }
+                    break;
+                case ' ': // Space bar to toggle game
+                    toggleGame();
+                    break;
+            }
+        });
+
+        // Get AI level selector
+        const aiLevelSelect = document.getElementById('aiLevel');
+
+        // Update AI status display
+        function updateAIStatus() {
+            if (!isAIActive) {
+                aiStatus.textContent = 'AI: Inactive';
+            } else if (aiLevel === 'deep') {
+                const backend = tf.getBackend() || 'cpu';
+                aiStatus.textContent = `AI: Deep Learning (${backend.toUpperCase()}, Exp: ${Math.round(explorationRate * 100)}%, Mem: ${replayMemory.length})`;
+            } else if (aiLevel === 'learning') {
+                aiStatus.textContent = `AI: Q-Learning (Exp: ${Math.round(explorationRate * 100)}%, Games: ${gameCount})`;
+            } else if (aiLevel === 'advanced') {
+                aiStatus.textContent = 'AI: Advanced';
+            } else {
+                aiStatus.textContent = 'AI: Basic';
+            }
+        }
+
+        // Toggle AI control
+        function toggleAI() {
+            isAIActive = !isAIActive;
+            updateAIStatus();
+        }
+
+        // Change AI level
+        function changeAILevel() {
+            aiLevel = aiLevelSelect.value;
+            updateAIStatus();
+
+            // Clear current path if switching to basic AI
+            if (aiLevel === 'basic') {
+                currentPath = [];
+            }
+        }
+
+        // Button event listeners
+        startBtn.addEventListener('click', toggleGame);
+        toggleAIBtn.addEventListener('click', toggleAI);
+        resetBtn.addEventListener('click', resetGame);
+        restartBtn.addEventListener('click', () => {
+            initGame();
+            startGame();
+        });
+        aiLevelSelect.addEventListener('change', changeAILevel);
+
+        // Training button event listeners
+        trainBtn.addEventListener('click', () => {
+            const episodes = parseInt(trainEpisodes.value);
+            if (episodes > 0) {
+                trainModel(episodes).catch(err => console.error('Training error:', err));
+            }
+        });
+
+        saveModelBtn.addEventListener('click', async () => {
+            if (!model) {
+                alert('No model to save');
+                return;
+            }
+
+            try {
+                // Save model to IndexedDB
+                await model.save('indexeddb://snake-ai-model');
+                trainingStatus.textContent = 'Model saved successfully';
+            } catch (err) {
+                console.error('Error saving model:', err);
+                trainingStatus.textContent = 'Error saving model';
+            }
+        });
+
+        loadModelBtn.addEventListener('click', async () => {
+            try {
+                // Load model from IndexedDB
+                model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+                trainingStatus.textContent = 'Model loaded successfully';
+            } catch (err) {
+                console.error('Error loading model:', err);
+                trainingStatus.textContent = 'Error loading model';
+                // Create a new model if loading fails
+                model = createModel();
+            }
+        });
+
+        // Export model to JSON file
+        exportModelBtn.addEventListener('click', async () => {
+            if (!model) {
+                alert('No model to export');
+                return;
+            }
+
+            try {
+                // Convert model to JSON format
+                const modelJSON = await model.save(tf.io.withSaveHandler(async modelArtifacts => {
+                    return modelArtifacts;
+                }));
+
+                // Create a download link
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(modelJSON));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "snake-ai-model.json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+
+                trainingStatus.textContent = 'Model exported successfully';
+            } catch (err) {
+                console.error('Error exporting model:', err);
+                trainingStatus.textContent = 'Error exporting model';
+            }
+        });
+
+        // Import model from JSON file
+        importModelBtn.addEventListener('click', async () => {
+            // Create file input element
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+
+            // Handle file selection
+            fileInput.onchange = async (event) => {
+                const file = event.target.files[0];
+                if (!file) {
+                    fileInput.remove();
+                    return;
+                }
+
+                try {
+                    // Read file content
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const modelJSON = JSON.parse(e.target.result);
+
+                            // Load model from JSON
+                            model = await tf.loadLayersModel(tf.io.fromMemory(modelJSON));
+                            trainingStatus.textContent = 'Model imported successfully';
+                        } catch (err) {
+                            console.error('Error parsing model JSON:', err);
+                            trainingStatus.textContent = 'Error importing model';
+                        }
+                        fileInput.remove();
+                    };
+                    reader.readAsText(file);
+                } catch (err) {
+                    console.error('Error reading file:', err);
+                    trainingStatus.textContent = 'Error reading file';
+                    fileInput.remove();
+                }
+            };
+
+            // Trigger file selection dialog
+            fileInput.click();
+        });
+
+        // Initialize the application
+        async function initializeApp() {
+            // Check if TensorFlow.js is loaded
+            if (typeof tf === 'undefined') {
+                console.error('TensorFlow.js not loaded. Deep learning features will not work.');
+                alert('TensorFlow.js could not be loaded. Deep learning features will not be available. Check your internet connection and try again.');
+                // Default to advanced AI if TensorFlow is not available
+                aiLevel = 'advanced';
+                aiLevelSelect.value = 'advanced';
+
+                // Initialize with basic AI
+                await initGame();
+                updateAIStatus();
+                startGame();
+                return;
+            }
+
+            console.log('TensorFlow.js loaded successfully. Using backend:', tf.getBackend());
+
+            // Initialize TensorFlow.js
+            try {
+                // Force TensorFlow to initialize
+                await tf.ready();
+                console.log('TensorFlow.js initialized successfully');
+
+                // Initialize the game with deep learning
+                if (aiLevel === 'deep') {
+                    trainingStatus.textContent = 'Initializing GPU detection...';
+
+                    // Create model and initialize GPU
+                    if (!model) {
+                        model = await createModel();
+                    }
+
+                    // Check GPU status
+                    await updateGpuStatus();
+
+                    // Initialize the game
+                    await initGame();
+                    updateAIStatus();
+                    await startGame();
+                } else {
+                    // Initialize with other AI types
+                    await initGame();
+                    updateAIStatus();
+                    await startGame();
+                }
+            } catch (error) {
+                console.error('Error initializing TensorFlow.js:', error);
+                trainingStatus.textContent = 'Error initializing - using fallback AI';
+
+                // Fall back to advanced AI
+                aiLevel = 'advanced';
+                aiLevelSelect.value = 'advanced';
+
+                // Initialize with fallback
+                await initGame();
+                updateAIStatus();
+                await startGame();
+            }
+        }
+
+        // Start the application
+        initializeApp().catch(error => {
+            console.error('Fatal error during initialization:', error);
+            alert('An error occurred during initialization. The game will use basic AI instead.');
+
+            // Emergency fallback
+            aiLevel = 'basic';
+            aiLevelSelect.value = 'basic';
+            initGame();
+            updateAIStatus();
+            startGame();
+        });
+    </script>
+</body>
+</html>
