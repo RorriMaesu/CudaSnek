@@ -421,78 +421,119 @@
             transform: translateY(10px);
         }
 
-        /* Tutorial tooltip styles - improved visibility and persistence */
+        /* Tutorial system - completely redesigned for maximum reliability */
+        #tutorial-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: all;
+        }
+
+        #tutorial-container.active {
+            display: flex;
+        }
+
         .tutorial-tooltip {
-            position: fixed; /* Changed from absolute to fixed for better positioning */
+            position: relative;
             background: linear-gradient(135deg, #4a5de7, #3949b6);
             color: white;
-            padding: 20px; /* Increased padding */
-            border-radius: 12px; /* Slightly larger radius */
-            font-size: 16px; /* Slightly larger font */
-            z-index: 9999; /* Much higher z-index to ensure it's on top */
-            max-width: 350px; /* Slightly wider */
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+            padding: 25px;
+            border-radius: 15px;
+            font-size: 16px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
             text-align: left;
-            animation: pulse 2s infinite;
-            border: 2px solid rgba(255, 255, 255, 0.3); /* More visible border */
-            line-height: 1.6; /* Slightly increased line height */
-            pointer-events: auto; /* Ensure it can receive clicks */
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            line-height: 1.6;
+            pointer-events: auto;
+            animation: tutorial-pulse 2s infinite;
+        }
+
+        @keyframes tutorial-pulse {
+            0% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7); }
+            50% { box-shadow: 0 10px 40px rgba(74, 93, 231, 0.8); }
+            100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7); }
         }
 
         .tutorial-tooltip h3 {
             margin-top: 0;
-            margin-bottom: 8px;
-            font-size: 18px;
+            margin-bottom: 12px;
+            font-size: 22px;
             color: #fff;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
         }
 
         .tutorial-tooltip p {
-            margin-bottom: 12px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.6;
         }
 
         .tutorial-tooltip .buttons {
             display: flex;
             justify-content: space-between;
-            margin-top: 10px;
+            margin-top: 20px;
         }
 
         .tutorial-tooltip button {
             background: rgba(255, 255, 255, 0.2);
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 8px 15px;
-            border-radius: 5px;
+            padding: 10px 20px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             font-weight: bold;
+            font-size: 16px;
+            min-width: 100px;
         }
 
         .tutorial-tooltip button.next {
             background: rgba(255, 255, 255, 0.3);
         }
 
+        .tutorial-tooltip button.finish {
+            background: rgba(74, 255, 160, 0.3);
+        }
+
         .tutorial-tooltip button:hover {
-            background: rgba(255, 255, 255, 0.4);
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .tutorial-tooltip button.finish:hover {
+            background: rgba(74, 255, 160, 0.5);
         }
 
         .tutorial-highlight {
-            position: fixed; /* Changed from absolute to fixed for better positioning */
-            border: 4px solid #4a5de7; /* Thicker border */
-            border-radius: 8px; /* Slightly larger radius */
-            box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.8); /* Darker overlay for better contrast */
-            z-index: 9998; /* Higher z-index, but below tooltip */
+            position: absolute;
+            border: 4px solid #4a5de7;
+            border-radius: 8px;
             pointer-events: none;
-            animation: glow 1.5s infinite alternate;
+            animation: highlight-pulse 1.5s infinite alternate;
+            z-index: 10001;
         }
 
-        @keyframes glow {
+        @keyframes highlight-pulse {
             from {
-                box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.7), 0 0 5px 2px rgba(74, 93, 231, 0.5);
+                box-shadow: 0 0 5px 2px rgba(74, 93, 231, 0.5);
+                border-color: rgba(74, 93, 231, 0.8);
             }
             to {
-                box-shadow: 0 0 0 5000px rgba(0, 0, 0, 0.7), 0 0 20px 5px rgba(74, 93, 231, 0.8);
+                box-shadow: 0 0 20px 5px rgba(74, 93, 231, 0.8);
+                border-color: rgba(74, 93, 231, 1);
             }
         }
 
@@ -3749,320 +3790,202 @@
             }, 10000);
         });
 
-        // Tutorial System - Improved version with better persistence
-        let tutorialSteps = [
-            {
-                title: 'Welcome to CudaSnek!',
-                content: 'This tutorial will guide you through using this AI Snake game. Click "Next" to continue.',
-                position: 'center',
-                element: null,
-                highlight: false
-            },
-            {
-                title: 'Game Modes',
-                content: 'Choose your game mode here. "Human Player" lets you control the snake with arrow keys. "Smart AI" uses neural networks, while "Simple AI" uses pathfinding algorithms.',
-                position: 'right',
-                element: '#aiLevel',
-                highlight: true
-            },
-            {
-                title: 'Start Game',
-                content: 'Click this button to start or pause the game.',
-                position: 'bottom',
-                element: '#startBtn',
-                highlight: true
-            },
-            {
-                title: 'Toggle AI',
-                content: 'Enable or disable AI control with this button. When disabled, you can control the snake yourself.',
-                position: 'bottom',
-                element: '#toggleAIBtn',
-                highlight: true
-            },
-            {
-                title: 'Reset Game',
-                content: 'Start a new game from scratch.',
-                position: 'bottom',
-                element: '#resetBtn',
-                highlight: true
-            },
-            {
-                title: 'Training Controls',
-                content: 'Set the number of episodes to train the AI, then click "Train on GPU" to make the AI smarter.',
-                position: 'top',
-                element: '.training-controls',
-                highlight: true
-            },
-            {
-                title: 'Save Your Model',
-                content: 'After training, save your model to use it later. The AI will remember what it learned!',
-                position: 'right',
-                element: '#saveModelBtn',
-                highlight: true
-            },
-            {
-                title: 'Game Stats',
-                content: 'Keep track of your score, snake length, and game speed here.',
-                position: 'left',
-                element: '.stats',
-                highlight: true
-            },
-            {
-                title: 'You\'re Ready!',
-                content: 'You now know how to use CudaSnek! Click "Finish" to start playing.',
-                position: 'center',
-                element: null,
-                highlight: false
-            }
-        ];
+        // Tutorial System - Completely redesigned for maximum reliability
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create tutorial container that will hold everything
+            const tutorialContainer = document.createElement('div');
+            tutorialContainer.id = 'tutorial-container';
+            document.body.appendChild(tutorialContainer);
 
-        let currentTutorialStep = 0;
-        let tutorialActive = false;
-        let highlightElement = null;
-        let tooltipElement = null;
-
-        // Function to start the tutorial
-        function startTutorial() {
-            currentTutorialStep = 0;
-            tutorialActive = true;
-            showTutorialStep(currentTutorialStep);
-        }
-
-        // Function to show a tutorial step - improved for better reliability
-        function showTutorialStep(stepIndex) {
-            // Store current step index
-            currentTutorialStep = stepIndex;
-
-            // Remove previous highlight and tooltip if they exist
-            if (highlightElement) {
-                try {
-                    document.body.removeChild(highlightElement);
-                } catch (e) {
-                    console.log('Could not remove highlight element:', e);
+            // Define tutorial steps
+            const tutorialSteps = [
+                {
+                    title: 'Welcome to CudaSnek!',
+                    content: 'This tutorial will guide you through using this AI Snake game. Click "Next" to continue.',
+                    element: null
+                },
+                {
+                    title: 'Game Modes',
+                    content: 'Choose your game mode here. "Human Player" lets you control the snake with arrow keys. "Smart AI" uses neural networks, while "Simple AI" uses pathfinding algorithms.',
+                    element: '#aiLevelSelect'
+                },
+                {
+                    title: 'Start Game',
+                    content: 'Click this button to start or pause the game.',
+                    element: '#startBtn'
+                },
+                {
+                    title: 'Toggle AI',
+                    content: 'Enable or disable AI control with this button. When disabled, you can control the snake yourself.',
+                    element: '#toggleAIBtn'
+                },
+                {
+                    title: 'Reset Game',
+                    content: 'Start a new game from scratch.',
+                    element: '#resetBtn'
+                },
+                {
+                    title: 'Training Controls',
+                    content: 'Set the number of episodes to train the AI, then click "Train on GPU" to make the AI smarter.',
+                    element: '#trainBtn'
+                },
+                {
+                    title: 'Save Your Model',
+                    content: 'After training, save your model to use it later. The AI will remember what it learned!',
+                    element: '#saveModelBtn'
+                },
+                {
+                    title: 'Game Stats',
+                    content: 'Keep track of your score, snake length, and game speed here.',
+                    element: '.stats'
+                },
+                {
+                    title: 'You\'re Ready!',
+                    content: 'You now know how to use CudaSnek! Click "Finish" to start playing.',
+                    element: null
                 }
-                highlightElement = null;
+            ];
+
+            let currentStep = 0;
+            let tutorialActive = false;
+
+            // Function to start the tutorial
+            function startTutorial() {
+                tutorialActive = true;
+                currentStep = 0;
+                showTutorialStep(currentStep);
             }
-            if (tooltipElement) {
-                try {
-                    document.body.removeChild(tooltipElement);
-                } catch (e) {
-                    console.log('Could not remove tooltip element:', e);
+
+            // Function to show a tutorial step
+            function showTutorialStep(stepIndex) {
+                // Clear previous content
+                tutorialContainer.innerHTML = '';
+
+                // Get current step
+                const step = tutorialSteps[stepIndex];
+                if (!step) return;
+
+                // Make container visible
+                tutorialContainer.classList.add('active');
+
+                // Create tooltip
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tutorial-tooltip';
+
+                // Add content
+                tooltip.innerHTML = `
+                    <h3>${step.title}</h3>
+                    <p>${step.content}</p>
+                    <div class="buttons">
+                        ${stepIndex > 0 ? '<button class="prev">Previous</button>' : '<div></div>'}
+                        ${stepIndex < tutorialSteps.length - 1 ?
+                            '<button class="next">Next</button>' :
+                            '<button class="finish">Finish</button>'}
+                    </div>
+                `;
+
+                // Add tooltip to container
+                tutorialContainer.appendChild(tooltip);
+
+                // Add event listeners
+                const prevButton = tooltip.querySelector('.prev');
+                if (prevButton) {
+                    prevButton.addEventListener('click', () => {
+                        showTutorialStep(stepIndex - 1);
+                    });
                 }
-                tooltipElement = null;
-            }
 
-            // Get the current step
-            const step = tutorialSteps[stepIndex];
-            if (!step) {
-                console.error('Tutorial step not found:', stepIndex);
-                return;
-            }
+                const nextButton = tooltip.querySelector('.next');
+                if (nextButton) {
+                    nextButton.addEventListener('click', () => {
+                        showTutorialStep(stepIndex + 1);
+                    });
+                }
 
-            // Create tooltip element
-            tooltipElement = document.createElement('div');
-            tooltipElement.className = 'tutorial-tooltip';
-            tooltipElement.id = 'tutorial-tooltip';
+                const finishButton = tooltip.querySelector('.finish');
+                if (finishButton) {
+                    finishButton.addEventListener('click', () => {
+                        endTutorial();
+                    });
+                }
 
-            // Add content to tooltip
-            tooltipElement.innerHTML = `
-                <h3>${step.title}</h3>
-                <p>${step.content}</p>
-                <div class="buttons">
-                    ${stepIndex > 0 ? '<button class="prev">Previous</button>' : ''}
-                    ${stepIndex < tutorialSteps.length - 1 ?
-                        '<button class="next">Next</button>' :
-                        '<button class="finish">Finish</button>'}
-                </div>
-            `;
+                // Highlight element if specified
+                if (step.element) {
+                    try {
+                        const targetElement = document.querySelector(step.element);
+                        if (targetElement) {
+                            // Create highlight
+                            const highlight = document.createElement('div');
+                            highlight.className = 'tutorial-highlight';
 
-            // Add event listeners to buttons
-            const prevButton = tooltipElement.querySelector('.prev');
-            if (prevButton) {
-                prevButton.addEventListener('click', () => {
-                    showTutorialStep(stepIndex - 1);
-                });
-            }
+                            // Position highlight
+                            const rect = targetElement.getBoundingClientRect();
+                            highlight.style.width = rect.width + 'px';
+                            highlight.style.height = rect.height + 'px';
+                            highlight.style.left = rect.left + 'px';
+                            highlight.style.top = rect.top + 'px';
 
-            const nextButton = tooltipElement.querySelector('.next');
-            if (nextButton) {
-                nextButton.addEventListener('click', () => {
-                    showTutorialStep(stepIndex + 1);
-                });
-            }
+                            // Add highlight to container
+                            tutorialContainer.appendChild(highlight);
 
-            const finishButton = tooltipElement.querySelector('.finish');
-            if (finishButton) {
-                finishButton.addEventListener('click', () => {
-                    endTutorial();
-                });
-            }
-
-            // Add tooltip to the document first so we can measure it
-            document.body.appendChild(tooltipElement);
-
-            // If there's an element to highlight
-            if (step.element && step.highlight) {
-                try {
-                    const targetElement = document.querySelector(step.element);
-                    if (targetElement) {
-                        // Create highlight element
-                        highlightElement = document.createElement('div');
-                        highlightElement.className = 'tutorial-highlight';
-                        highlightElement.id = 'tutorial-highlight';
-
-                        // Position the highlight over the target element
-                        const rect = targetElement.getBoundingClientRect();
-                        highlightElement.style.left = rect.left + 'px';
-                        highlightElement.style.top = rect.top + 'px';
-                        highlightElement.style.width = rect.width + 'px';
-                        highlightElement.style.height = rect.height + 'px';
-
-                        // Add highlight to the document
-                        document.body.appendChild(highlightElement);
-
-                        // Position the tooltip relative to the highlighted element
-                        positionTooltip(tooltipElement, targetElement, step.position);
-
-                        // Scroll element into view if needed
-                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    } else {
-                        console.warn(`Element not found: ${step.element}`);
-                        centerTooltip(tooltipElement);
+                            // Scroll to element
+                            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    } catch (e) {
+                        console.error('Error highlighting element:', e);
                     }
-                } catch (e) {
-                    console.error('Error highlighting element:', e);
-                    centerTooltip(tooltipElement);
                 }
-            } else {
-                // Center the tooltip if there's no element to highlight
-                centerTooltip(tooltipElement);
+
+                // Add escape key handler
+                document.addEventListener('keydown', handleEscapeKey);
             }
 
-            // Make sure the tooltip is visible by forcing a reflow
-            tooltipElement.style.opacity = '0';
-            setTimeout(() => {
-                tooltipElement.style.opacity = '1';
-            }, 50);
-        }
-
-        // Function to position the tooltip relative to an element
-        function positionTooltip(tooltip, targetElement, position) {
-            const targetRect = targetElement.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
-
-            let left, top;
-
-            switch (position) {
-                case 'top':
-                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
-                    top = targetRect.top - tooltipRect.height - 10;
-                    break;
-                case 'bottom':
-                    left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
-                    top = targetRect.bottom + 10;
-                    break;
-                case 'left':
-                    left = targetRect.left - tooltipRect.width - 10;
-                    top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
-                    break;
-                case 'right':
-                    left = targetRect.right + 10;
-                    top = targetRect.top + (targetRect.height / 2) - (tooltipRect.height / 2);
-                    break;
-                default: // center
-                    left = (window.innerWidth / 2) - (tooltipRect.width / 2);
-                    top = (window.innerHeight / 2) - (tooltipRect.height / 2);
-            }
-
-            // Make sure the tooltip stays within the viewport
-            left = Math.max(10, Math.min(left, window.innerWidth - tooltipRect.width - 10));
-            top = Math.max(10, Math.min(top, window.innerHeight - tooltipRect.height - 10));
-
-            tooltip.style.left = left + 'px';
-            tooltip.style.top = top + 'px';
-        }
-
-        // Function to center the tooltip on the screen
-        function centerTooltip(tooltip) {
-            const tooltipRect = tooltip.getBoundingClientRect();
-            const left = (window.innerWidth / 2) - (tooltipRect.width / 2);
-            const top = (window.innerHeight / 2) - (tooltipRect.height / 2);
-
-            tooltip.style.left = left + 'px';
-            tooltip.style.top = top + 'px';
-        }
-
-        // Function to end the tutorial - improved for better reliability
-        function endTutorial() {
-            tutorialActive = false;
-
-            // Remove highlight and tooltip with better error handling
-            if (highlightElement) {
-                try {
-                    document.body.removeChild(highlightElement);
-                } catch (e) {
-                    console.log('Could not remove highlight element during cleanup:', e);
+            // Function to handle escape key
+            function handleEscapeKey(e) {
+                if (e.key === 'Escape' && tutorialActive) {
+                    endTutorial();
+                    e.preventDefault();
                 }
-                highlightElement = null;
             }
 
-            if (tooltipElement) {
-                try {
-                    document.body.removeChild(tooltipElement);
-                } catch (e) {
-                    console.log('Could not remove tooltip element during cleanup:', e);
-                }
-                tooltipElement = null;
+            // Function to end tutorial
+            function endTutorial() {
+                tutorialActive = false;
+                tutorialContainer.classList.remove('active');
+                tutorialContainer.innerHTML = '';
+                document.removeEventListener('keydown', handleEscapeKey);
+                showTooltip('Tutorial completed! Click the tutorial button anytime to see it again.', 5000);
             }
 
-            // Also try to remove by ID as a fallback
-            try {
-                const highlightById = document.getElementById('tutorial-highlight');
-                if (highlightById) document.body.removeChild(highlightById);
-
-                const tooltipById = document.getElementById('tutorial-tooltip');
-                if (tooltipById) document.body.removeChild(tooltipById);
-            } catch (e) {
-                console.log('Error during additional cleanup:', e);
-            }
-
-            // Show a final tooltip
-            showTooltip('Tutorial completed! Click the tutorial button anytime to see it again.', 5000);
-        }
-
-        // Add a tutorial button to the page - improved visibility and reliability
-        window.addEventListener('DOMContentLoaded', () => {
-            // Create the tutorial button after DOM is fully loaded
+            // Create tutorial button
             const tutorialButton = document.createElement('button');
             tutorialButton.id = 'tutorialBtn';
-            tutorialButton.className = 'help-button pulse-button';
+            tutorialButton.className = 'help-button';
             tutorialButton.innerHTML = '<i class="fas fa-graduation-cap"></i>';
-            tutorialButton.style.right = '80px'; // Position it next to the help button
-            tutorialButton.style.zIndex = '9999'; // Ensure high z-index
+            tutorialButton.style.right = '80px';
             tutorialButton.title = 'Start Tutorial';
             document.body.appendChild(tutorialButton);
 
-            // Add event listener to the tutorial button
+            // Add event listener to button
             tutorialButton.addEventListener('click', () => {
                 if (!tutorialActive) {
-                    // Reset tutorial state before starting
-                    if (highlightElement) {
-                        try { document.body.removeChild(highlightElement); } catch (e) {}
-                        highlightElement = null;
-                    }
-                    if (tooltipElement) {
-                        try { document.body.removeChild(tooltipElement); } catch (e) {}
-                        tooltipElement = null;
-                    }
                     startTutorial();
                 }
             });
+
+            // Start tutorial automatically on first visit
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    if (!localStorage.getItem('tutorialShown')) {
+                        startTutorial();
+                        localStorage.setItem('tutorialShown', 'true');
+                    }
+                }, 2000);
+            });
         });
 
-        // Event listener is now added in the DOMContentLoaded event above
-
-        // Add tutorial button style - improved visibility
-        window.addEventListener('DOMContentLoaded', () => {
+        // Add tutorial button style
+        document.addEventListener('DOMContentLoaded', () => {
             const style = document.createElement('style');
             style.textContent = `
                 #tutorialBtn {
@@ -4104,17 +4027,6 @@
                 }
             `;
             document.head.appendChild(style);
-        });
-
-        // Start the tutorial automatically on first visit with improved timing and persistence
-        window.addEventListener('load', () => {
-            // Wait a bit longer for everything to be fully loaded and stable
-            setTimeout(() => {
-                if (!localStorage.getItem('tutorialShown')) {
-                    startTutorial();
-                    localStorage.setItem('tutorialShown', 'true');
-                }
-            }, 3000); // Increased from 2000ms to 3000ms for better stability
         });
     </script>
 
