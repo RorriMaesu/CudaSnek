@@ -208,7 +208,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.85);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -216,6 +216,7 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px);
         }
 
         .instruction-overlay.active {
@@ -224,78 +225,108 @@
         }
 
         .instruction-content {
-            background: linear-gradient(135deg, #2a2a4e, #26315e);
-            border-radius: 15px;
-            padding: 15px;
-            max-width: 450px;
+            background: linear-gradient(135deg, #1a1a3e, #26315e);
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 550px;
             width: 90%;
-            max-height: 95vh;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
             position: relative;
-            border: 2px solid #4a5de7;
+            border: 1px solid rgba(74, 93, 231, 0.4);
             display: flex;
             flex-direction: column;
+            scrollbar-width: thin;
+            scrollbar-color: #4a5de7 #1a1a3e;
+        }
+
+        .instruction-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .instruction-content::-webkit-scrollbar-track {
+            background: #1a1a3e;
+            border-radius: 10px;
+        }
+
+        .instruction-content::-webkit-scrollbar-thumb {
+            background: #4a5de7;
+            border-radius: 10px;
         }
 
         .instruction-content h2 {
             color: #4a5de7;
             margin-top: 0;
-            font-size: 20px;
+            font-size: 24px;
             text-align: center;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px rgba(74, 93, 231, 0.5);
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            font-weight: 700;
         }
 
         .instruction-content h3 {
-            font-size: 16px;
-            margin: 8px 0 4px;
+            font-size: 18px;
+            margin: 16px 0 8px;
             color: #fff;
             display: flex;
             align-items: center;
+            border-bottom: 1px solid rgba(74, 93, 231, 0.3);
+            padding-bottom: 6px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .instruction-content h3 i {
-            margin-right: 6px;
+            margin-right: 8px;
+            color: #4a5de7;
         }
 
         .instruction-content p {
-            margin-bottom: 6px;
-            font-size: 14px;
-            line-height: 1.3;
+            margin-bottom: 12px;
+            font-size: 15px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .instruction-content ul {
-            padding-left: 10px;
-            margin: 4px 0 8px;
+            padding-left: 5px;
+            margin: 8px 0 16px;
             list-style-type: none;
         }
 
         .instruction-content li {
-            margin-bottom: 3px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            font-size: 13px;
-            line-height: 1.2;
+            font-size: 14px;
+            line-height: 1.4;
+            padding-left: 5px;
+            transition: transform 0.2s ease;
+        }
+
+        .instruction-content li:hover {
+            transform: translateX(3px);
         }
 
         .instruction-content li i {
             color: #4a5de7;
-            margin-right: 6px;
-            font-size: 14px;
-            min-width: 16px;
+            margin-right: 8px;
+            font-size: 15px;
+            min-width: 20px;
             text-align: center;
         }
 
         .instruction-close {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 94, 94, 0.2);
-            border: 2px solid #ff5e5e;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 94, 94, 0.15);
+            border: 1px solid rgba(255, 94, 94, 0.5);
             color: #fff;
-            font-size: 24px;
-            width: 40px;
-            height: 40px;
+            font-size: 18px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -303,19 +334,21 @@
             cursor: pointer;
             transition: all 0.2s;
             z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .instruction-close:hover {
             transform: scale(1.1);
             background: rgba(255, 94, 94, 0.4);
             color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .instruction-button {
-            background: #4a5de7;
+            background: linear-gradient(135deg, #4a5de7, #3949b6);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 50px;
             font-weight: bold;
             font-size: 16px;
@@ -323,47 +356,52 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
             transition: all 0.3s;
             box-shadow: 0 4px 15px rgba(74, 93, 231, 0.4);
-            margin: 10px auto 5px;
-            width: 160px;
+            margin: 15px auto 5px;
+            width: 180px;
+            letter-spacing: 0.5px;
         }
 
         .instruction-button:hover {
-            background: #3a4ed7;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(74, 93, 231, 0.6);
+            background: linear-gradient(135deg, #5a6df7, #4a5de7);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(74, 93, 231, 0.6);
         }
 
         .instruction-note {
             text-align: center;
-            font-size: 12px;
-            color: #aaa;
-            margin: 2px 0;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 8px 0;
         }
 
         .instruction-note i {
             margin-right: 5px;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .instruction-tip {
             background-color: rgba(74, 93, 231, 0.1);
             border-left: 3px solid #4a5de7;
-            padding: 8px 12px;
-            margin: 10px 0;
-            font-size: 13px;
-            line-height: 1.4;
-            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 14px;
+            line-height: 1.5;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .instruction-tip i {
             color: #ffcc00;
-            margin-right: 5px;
+            margin-right: 8px;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.3);
         }
 
         .instruction-tip strong {
             color: #4a5de7;
+            font-weight: 600;
         }
 
         .tooltip {
@@ -3332,8 +3370,8 @@
                     <h2><i class="fas fa-brain"></i> CudaSnek Instructions</h2>
                     <p>Welcome to CudaSnek - a GPU-accelerated Snake AI that learns as it plays!</p>
 
-                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between;">
-                        <div style="flex: 1; min-width: 180px;">
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px;">
+                        <div style="flex: 1; min-width: 200px;">
                             <h3><i class="fas fa-gamepad"></i> Game Controls</h3>
                             <ul>
                                 <li><i class="fas fa-play"></i> <strong>Resume</strong> - Start/resume game</li>
@@ -3356,9 +3394,9 @@
                             </ul>
                         </div>
 
-                        <div style="flex: 1; min-width: 180px;">
+                        <div style="flex: 1; min-width: 200px;">
                             <h3><i class="fas fa-cogs"></i> Training Guide</h3>
-                            <ol style="padding-left: 15px;">
+                            <ol style="padding-left: 20px;">
                                 <li>Select <strong>Smart AI (GPU)</strong> mode</li>
                                 <li>Set <strong>Episodes</strong> (1000+ recommended)</li>
                                 <li>Click <strong>Train on GPU</strong> button</li>
