@@ -1713,9 +1713,9 @@
             if (aiLevel !== 'human') {
                 // For AI modes, preserve the previous AI state unless this is the first game
                 if (typeof window.gameInitialized === 'undefined') {
-                    // First time initialization - default to AI off
-                    isAIActive = false;
-                    toggleAIBtn.textContent = 'Enable AI';
+                    // First time initialization - default to AI ON for AI modes
+                    isAIActive = true;
+                    toggleAIBtn.textContent = 'Disable AI';
                     window.gameInitialized = true;
                 } else {
                     // Preserve the previous AI state
@@ -3258,11 +3258,14 @@
                 // Show tooltip about AI being enabled
                 showTooltip(`${aiLevel.charAt(0).toUpperCase() + aiLevel.slice(1)} AI activated!`, 2000);
             }
-            // Default for new game - AI starts disabled
+            // Default for new game - AI starts enabled for AI modes
             else if (previousLevel === null || previousLevel === undefined) {
-                // Default to AI off for new games
-                isAIActive = false;
-                toggleAIBtn.textContent = 'Enable AI';
+                // Default to AI ON for new games in AI modes
+                isAIActive = true;
+                toggleAIBtn.textContent = 'Disable AI';
+
+                // Show tooltip about AI being enabled
+                showTooltip(`${aiLevel.charAt(0).toUpperCase() + aiLevel.slice(1)} AI activated!`, 2000);
             }
             // Switching between AI modes (not from human mode)
             else if (previousLevel !== 'human' && aiLevel !== 'human') {
