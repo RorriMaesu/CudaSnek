@@ -1543,118 +1543,19 @@
         // Train model on a batch of experiences
         async function trainOnBatch() {
             try {
-                // Need enough samples in replay memory
-                if (replayMemory.length < miniBatchSize) {
+                // Use simplified deep AI for training
+                if (window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI.trainOnBatch();
+
+                    // Update training status
+                    const stats = window.simplifiedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
                     return;
                 }
 
-                // Check if model is valid
-                if (!model || !model.fit) {
-                    console.warn('Cannot train - model not properly initialized');
-                    return;
-                }
-
-                // Ensure model is compiled
-                if (!window.modelCompiled) {
-                    console.log('Model not compiled, compiling now...');
-                    model.compile({
-                        optimizer: tf.train.adam(0.001),
-                        loss: 'meanSquaredError'
-                    });
-                    window.modelCompiled = true;
-                }
-
-                // Update training status
-                trainingStatus.textContent = `Training in progress (${replayMemory.length} samples)`;
-
-                // Sample random batch from replay memory with priority for recent experiences
-                const batch = [];
-                const batchIndices = [];
-
-                // Include some recent experiences (last 20%)
-                const recentCount = Math.min(Math.floor(miniBatchSize * 0.2), replayMemory.length);
-                const startIdx = Math.max(0, replayMemory.length - recentCount);
-
-                for (let i = 0; i < recentCount; i++) {
-                    const index = startIdx + i;
-                    batchIndices.push(index);
-                    batch.push(replayMemory[index]);
-                }
-
-                // Fill the rest with random samples
-                while (batch.length < miniBatchSize) {
-                    const index = Math.floor(Math.random() * replayMemory.length);
-                    if (!batchIndices.includes(index)) {
-                        batchIndices.push(index);
-                        batch.push(replayMemory[index]);
-                    }
-                }
-
-                // Create tensors and perform training in a try-catch block
-                let states, nextStates, qValues, nextQValues, updatedQValues;
-
-                try {
-                    // Prepare tensors for training
-                    states = tf.tensor2d(batch.map(exp => exp.state));
-                    nextStates = tf.tensor2d(batch.map(exp => exp.nextState));
-
-                    // Predict Q-values for current states and next states
-                    qValues = model.predict(states);
-                    nextQValues = model.predict(nextStates);
-
-                    // Convert to arrays for manipulation
-                    const qValuesArray = await qValues.array();
-                    const nextQValuesArray = await nextQValues.array();
-
-                    // Update Q-values based on reward and next state
-                    batch.forEach((experience, index) => {
-                        if (experience.done) {
-                            // If terminal state, target is just the reward
-                            qValuesArray[index][experience.action] = experience.reward;
-                        } else {
-                            // Otherwise, target is reward + discount * max future Q-value
-                            const maxNextQ = Math.max(...nextQValuesArray[index]);
-                            qValuesArray[index][experience.action] = experience.reward + discountFactor * maxNextQ;
-                        }
-                    });
-
-                    // Train the model with updated Q-values
-                    updatedQValues = tf.tensor2d(qValuesArray);
-
-                    // Train with more epochs for better learning
-                    const result = await model.fit(states, updatedQValues, {
-                        epochs: 3,  // Increased from 1 to 3 for better learning
-                        batchSize: miniBatchSize,
-                        verbose: 1,  // Show training progress
-                        callbacks: {
-                            onEpochEnd: (epoch, logs) => {
-                                // Update training status with loss information
-                                const loss = logs.loss.toFixed(4);
-                                trainingStatus.textContent = `Training epoch ${epoch+1}/3 (loss: ${loss})`;
-                            }
-                        }
-                    });
-
-                    // Update status with final loss
-                    const finalLoss = result.history.loss[result.history.loss.length - 1].toFixed(4);
-                    trainingStatus.textContent = `Training complete (loss: ${finalLoss})`;
-
-                    // Show a visual indicator of training progress
-                    showTooltip(`Training batch complete (loss: ${finalLoss})`, 1000);
-                } catch (trainingError) {
-                    console.error('Error during training:', trainingError);
-                    // If we're in the middle of training, update the status
-                    if (isTraining) {
-                        trainingStatus.textContent = 'Training error - using fallback AI';
-                    }
-                } finally {
-                    // Clean up tensors to prevent memory leaks
-                    if (states) states.dispose();
-                    if (nextStates) nextStates.dispose();
-                    if (qValues) qValues.dispose();
-                    if (nextQValues) nextQValues.dispose();
-                    if (updatedQValues) updatedQValues.dispose();
-                }
+                // If simplified deep AI is not available, show warning
+                console.warn('Cannot train - simplified deep AI not initialized');
+                return;
             } catch (error) {
                 console.error('Fatal error in trainOnBatch:', error);
             }
@@ -1673,25 +1574,38 @@
             let simulatedLoopDetected = false;
 
             // Get initial state
-            let state = getDeepState(simulatedSnake[0]);
+            let state = getState(simulatedSnake[0]);
+            state.headX = simulatedSnake[0].x;
+            state.headY = simulatedSnake[0].y;
+            state.foodX = simulatedFood.x;
+            state.foodY = simulatedFood.y;
 
             // Run episode until done or max steps reached
             while (!done && step < maxSteps) {
+                // Convert state to direction string for simplified deep AI
+                let currentDirection = 'right'; // Default
+                if (simulatedDirection.x === 0 && simulatedDirection.y === -1) currentDirection = 'up';
+                else if (simulatedDirection.x === 1 && simulatedDirection.y === 0) currentDirection = 'right';
+                else if (simulatedDirection.x === 0 && simulatedDirection.y === 1) currentDirection = 'down';
+                else if (simulatedDirection.x === -1 && simulatedDirection.y === 0) currentDirection = 'left';
+
+                // Get action from simplified deep AI
+                const { actionProbabilities } = window.simplifiedDeepAI.forward(state, currentDirection);
+
                 // Choose action using epsilon-greedy policy
                 let action;
-                if (Math.random() < explorationRate) {
+                if (Math.random() < window.simplifiedDeepAI.explorationRate) {
                     // Exploration: random action
                     action = Math.floor(Math.random() * 4); // 0: up, 1: right, 2: down, 3: left
                 } else {
                     // Exploitation: best action from model
-                    const stateTensor = tf.tensor2d([state]);
-                    const prediction = model.predict(stateTensor);
-                    const predictionArray = await prediction.array();
-                    action = predictionArray[0].indexOf(Math.max(...predictionArray[0]));
-
-                    // Clean up tensor
-                    stateTensor.dispose();
-                    prediction.dispose();
+                    let maxIndex = 0;
+                    for (let i = 1; i < actionProbabilities.length; i++) {
+                        if (actionProbabilities[i] > actionProbabilities[maxIndex]) {
+                            maxIndex = i;
+                        }
+                    }
+                    action = maxIndex;
                 }
 
                 // Convert action index to direction
@@ -1788,10 +1702,15 @@
                 }
 
                 // Get next state
-                const nextState = getDeepState(simulatedSnake[0]);
+                const nextState = getState(simulatedSnake[0]);
+                nextState.headX = simulatedSnake[0].x;
+                nextState.headY = simulatedSnake[0].y;
+                nextState.foodX = simulatedFood.x;
+                nextState.foodY = simulatedFood.y;
 
-                // Add to replay memory
-                addExperience(state, action, reward, nextState, done);
+                // Store experience in simplified deep AI
+                const actionString = ['up', 'right', 'down', 'left'][action];
+                window.simplifiedDeepAI.storeExperience(state, actionString, reward, nextState, done);
 
                 // Update state
                 state = nextState;
@@ -1843,8 +1762,10 @@
                 const batchResults = await Promise.all(episodePromises);
                 results.push(...batchResults);
 
-                // Train on accumulated experiences
-                await trainOnBatch();
+                // Train on accumulated experiences using simplified deep AI
+                if (window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI.trainOnBatch();
+                }
 
                 // Update progress
                 episodesCompleted += currentBatchSize;
