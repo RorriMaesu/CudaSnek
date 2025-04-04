@@ -1399,6 +1399,13 @@
                 explorationRate = Math.max(0.05, 0.2 - (gameCount * 0.01));
             }
 
+            // Check if we're in human mode and disable AI if so
+            if (aiLevel === 'human') {
+                isAIActive = false;
+                toggleAIBtn.textContent = 'Enable AI';
+                toggleAIBtn.disabled = true;
+            }
+
             // Initialize model if not already created
             if (!model && aiLevel === "deep") {
                 trainingStatus.textContent = 'Initializing model...';
@@ -2629,26 +2636,45 @@
 
         // Toggle AI control
         function toggleAI() {
-            isAIActive = !isAIActive;
+            // Don't allow enabling AI in human mode
+            if (aiLevel === 'human') {
+                isAIActive = false;
+                showTooltip('AI control is disabled in Human Player mode', 2000);
+            } else {
+                isAIActive = !isAIActive;
+                toggleAIBtn.textContent = isAIActive ? 'Disable AI' : 'Enable AI';
+            }
+
             updateAIStatus();
         }
 
         // Change AI level
         function changeAILevel() {
+            const previousLevel = aiLevel;
             aiLevel = aiLevelSelect.value;
 
             // Handle human mode
             if (aiLevel === 'human') {
+                // Force AI to be inactive in human mode
+                isAIActive = false;
+
                 // Show keyboard controls hint
                 showTooltip('Use arrow keys to control the snake!', 3000);
+
+                // Update toggle button text to reflect AI is off
+                toggleAIBtn.textContent = 'Enable AI';
             }
 
+            // Update AI status display
             updateAIStatus();
 
             // Clear current path if switching to basic AI
             if (aiLevel === 'basic') {
                 currentPath = [];
             }
+
+            // Log the mode change
+            console.log(`Game mode changed from ${previousLevel} to ${aiLevel}. AI active: ${isAIActive}`);
         }
 
         // Function to show temporary tooltip
