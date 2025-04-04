@@ -1067,8 +1067,7 @@
         <button id="resetBtn">Reset Game</button>
         <select id="aiLevel">
             <option value="human">Human Player</option>
-            <option value="enhanced">Enhanced AI (Trainable)</option>
-            <option value="deep">Smart AI (GPU)</option>
+            <option value="deep">Smart AI (Trainable)</option>
             <option value="advanced">Simple AI</option>
         </select>
     </div>
@@ -1545,8 +1544,15 @@
         // Train model on a batch of experiences
         async function trainOnBatch() {
             try {
-                // Use simplified deep AI for training
-                if (window.simplifiedDeepAI) {
+                // Use the appropriate AI for training based on mode
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    window.enhancedDeepAI.trainOnBatch();
+
+                    // Update training status
+                    const stats = window.enhancedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
+                    return;
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
                     window.simplifiedDeepAI.trainOnBatch();
 
                     // Update training status
@@ -1591,12 +1597,27 @@
                 else if (simulatedDirection.x === 0 && simulatedDirection.y === 1) currentDirection = 'down';
                 else if (simulatedDirection.x === -1 && simulatedDirection.y === 0) currentDirection = 'left';
 
-                // Get action from simplified deep AI
-                const { actionProbabilities } = window.simplifiedDeepAI.forward(state, currentDirection);
+                // Get action from the appropriate AI based on mode
+                let actionProbabilities;
+                let explorationRate;
+
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    const result = window.enhancedDeepAI.forward(state, currentDirection);
+                    actionProbabilities = result.actionProbabilities;
+                    explorationRate = window.enhancedDeepAI.explorationRate;
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
+                    const result = window.simplifiedDeepAI.forward(state, currentDirection);
+                    actionProbabilities = result.actionProbabilities;
+                    explorationRate = window.simplifiedDeepAI.explorationRate;
+                } else {
+                    // Fallback to default values if AI not available
+                    actionProbabilities = [0.25, 0.25, 0.25, 0.25];
+                    explorationRate = 0.1;
+                }
 
                 // Choose action using epsilon-greedy policy
                 let action;
-                if (Math.random() < window.simplifiedDeepAI.explorationRate) {
+                if (Math.random() < explorationRate) {
                     // Exploration: random action
                     action = Math.floor(Math.random() * 4); // 0: up, 1: right, 2: down, 3: left
                 } else {
@@ -1710,9 +1731,14 @@
                 nextState.foodX = simulatedFood.x;
                 nextState.foodY = simulatedFood.y;
 
-                // Store experience in simplified deep AI
+                // Store experience in the appropriate AI based on mode
                 const actionString = ['up', 'right', 'down', 'left'][action];
-                window.simplifiedDeepAI.storeExperience(state, actionString, reward, nextState, done);
+
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    window.enhancedDeepAI.storeExperience(state, actionString, reward, nextState, done);
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI.storeExperience(state, actionString, reward, nextState, done);
+                }
 
                 // Update state
                 state = nextState;
@@ -1764,8 +1790,10 @@
                 const batchResults = await Promise.all(episodePromises);
                 results.push(...batchResults);
 
-                // Train on accumulated experiences using simplified deep AI
-                if (window.simplifiedDeepAI) {
+                // Train on accumulated experiences using the appropriate AI based on mode
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    window.enhancedDeepAI.trainOnBatch();
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
                     window.simplifiedDeepAI.trainOnBatch();
                 }
 
@@ -2313,8 +2341,8 @@
                     // Apply a positive reward for actions that led to food
                     qTable[stateKey][lastAction] += 1.0;
                 }
-                // For enhanced AI: reward the action that led to food
-                else if (aiLevel === "enhanced" && window.enhancedDeepAI) {
+                // For deep learning AI: reward the action that led to food
+                else if (aiLevel === "deep" && window.enhancedDeepAI) {
                     // Get current state
                     const state = getState(head);
                     state.headX = head.x;
@@ -2328,22 +2356,6 @@
                     // Update training status
                     const stats = window.enhancedDeepAI.getTrainingStats();
                     trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
-                }
-                // For deep learning AI: reward the action that led to food
-                else if (aiLevel === "deep" && window.simplifiedDeepAI) {
-                    // Get current state
-                    const state = getState(head);
-                    state.headX = head.x;
-                    state.headY = head.y;
-                    state.foodX = food.x;
-                    state.foodY = food.y;
-
-                    // Notify the deep AI about food eaten
-                    window.simplifiedDeepAI.handleFoodEaten(state);
-
-                    // Update training status
-                    const stats = window.simplifiedDeepAI.getTrainingStats();
-                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
                 }
 
                 // Increase speed every 5 food items
@@ -2666,8 +2678,8 @@
                 // Apply a large negative reward for actions that led to death
                 qTable[stateKey][lastAction] -= 1.0;
             }
-            // For enhanced AI: notify about game over
-            else if (aiLevel === "enhanced" && window.enhancedDeepAI) {
+            // For deep learning AI: notify about game over
+            else if (aiLevel === "deep" && window.enhancedDeepAI) {
                 // Get final state
                 const head = snake[0];
                 const state = getState(head);
@@ -2682,23 +2694,6 @@
                 // Update training status
                 const stats = window.enhancedDeepAI.getTrainingStats();
                 trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
-            }
-            // For deep learning AI: notify about game over
-            else if (aiLevel === "deep" && window.simplifiedDeepAI) {
-                // Get final state
-                const head = snake[0];
-                const state = getState(head);
-                state.headX = head.x;
-                state.headY = head.y;
-                state.foodX = food.x;
-                state.foodY = food.y;
-
-                // Notify the deep AI about game over
-                window.simplifiedDeepAI.handleGameOver(state);
-
-                // Update training status
-                const stats = window.simplifiedDeepAI.getTrainingStats();
-                trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
             }
 
             // Increment game count for learning
@@ -3649,11 +3644,8 @@
         // Main AI decision making function that chooses between algorithms
         function makeAIDecision() {
             if (aiLevel === "deep") {
-                // Smart AI using deep learning (async, but we can't await here)
-                makeDeepAIDecision().catch(err => console.error('Smart AI error:', err));
-            } else if (aiLevel === "enhanced") {
-                // Enhanced AI using rule-based reinforcement learning
-                makeEnhancedAIDecision().catch(err => console.error('Enhanced AI error:', err));
+                // Smart AI using enhanced deep learning (async, but we can't await here)
+                makeEnhancedAIDecision().catch(err => console.error('Smart AI error:', err));
             } else {
                 // Simple AI using pathfinding
                 makeAdvancedAIDecision();
@@ -3736,7 +3728,7 @@
                 document.getElementById('toggleAIBtn').disabled = false; // Enable AI toggle in AI modes
                 if (!isAIActive) {
                     aiStatus.textContent = 'AI: Inactive';
-                } else if (aiLevel === 'enhanced') {
+                } else if (aiLevel === 'deep') {
                     // Check if we have a saved model and get training stats
                     const modelStatus = localStorage.getItem('enhanced-deep-ai-model') ? '💾 SAVED' : 'NEW';
 
@@ -3747,19 +3739,7 @@
                         trainingInfo = ` (Training: ${stats.trainingCount}, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore})`;
                     }
 
-                    aiStatus.textContent = `AI: Enhanced (${modelStatus})${trainingInfo}`;
-                } else if (aiLevel === 'deep') {
-                    // Check if we have a saved model and get training stats
-                    const modelStatus = localStorage.getItem('simplified-deep-ai-model') ? '💾 SAVED' : 'NEW';
-
-                    // Get training statistics if available
-                    let trainingInfo = '';
-                    if (window.simplifiedDeepAI) {
-                        const stats = window.simplifiedDeepAI.getTrainingStats();
-                        trainingInfo = ` (Training: ${stats.trainingCount}, Memory: ${stats.memorySize})`;
-                    }
-
-                    aiStatus.textContent = `AI: Smart (JS, ${modelStatus})${trainingInfo}`;
+                    aiStatus.textContent = `AI: Smart (${modelStatus})${trainingInfo}`;
                 } else if (aiLevel === 'advanced') {
                     aiStatus.textContent = 'AI: Advanced';
                 } else {
@@ -3802,21 +3782,21 @@
             // Special handling for deep learning mode
             if (requestedLevel === 'deep') {
                 try {
-                    // Initialize the simplified deep AI if not already done
-                    if (!window.simplifiedDeepAI) {
-                        window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                    // Initialize the enhanced deep AI if not already done
+                    if (!window.enhancedDeepAI) {
+                        window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
                         // Try to load saved model
-                        const loaded = window.simplifiedDeepAI.loadModel();
+                        const loaded = window.enhancedDeepAI.loadModel();
                         if (loaded) {
-                            console.log('Loaded simplified deep AI model from localStorage');
+                            console.log('Loaded enhanced deep AI model from localStorage');
                         } else {
-                            console.log('Created new simplified deep AI model');
+                            console.log('Created new enhanced deep AI model');
                         }
                     }
 
-                    // If we get here, simplified deep AI is working
+                    // If we get here, enhanced deep AI is working
                     aiLevel = requestedLevel;
-                    console.log('Successfully initialized simplified deep learning AI');
+                    console.log('Successfully initialized enhanced deep learning AI');
                 } catch (error) {
                     console.error('Cannot use deep learning mode:', error);
                     showTooltip(`Cannot use deep learning mode. Using advanced AI instead.`, 5000);
@@ -4130,17 +4110,17 @@
             aiLevelSelect.value = 'human';
 
             try {
-                // Initialize the simplified deep AI
-                window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                // Initialize the enhanced deep AI
+                window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
                 // Try to load saved model
-                const loaded = window.simplifiedDeepAI.loadModel();
+                const loaded = window.enhancedDeepAI.loadModel();
                 if (loaded) {
-                    console.log('Loaded simplified deep AI model from localStorage');
+                    console.log('Loaded enhanced deep AI model from localStorage');
                 } else {
-                    console.log('Created new simplified deep AI model');
+                    console.log('Created new enhanced deep AI model');
                 }
             } catch (error) {
-                console.error('Error initializing simplified deep AI:', error);
+                console.error('Error initializing enhanced deep AI:', error);
                 // Disable deep learning option in the dropdown
                 const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
                 if (deepOption) {
@@ -4154,7 +4134,7 @@
             }
 
             // Update GPU status in UI
-            trainingStatus.textContent = 'Using simplified deep learning (JavaScript)';
+            trainingStatus.textContent = 'Using enhanced deep learning with rule-based AI';
             gpuValue.textContent = 'JavaScript';
             gpuValue.style.color = '#4CAF50'; // Green
 
