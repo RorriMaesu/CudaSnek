@@ -1844,6 +1844,18 @@
             pauseGame();
             isGameOver = true;
 
+            // Show appropriate message based on game mode
+            if (aiLevel === 'human') {
+                // Show game over message for human players
+                gameOverScore.textContent = score;
+                gameOverScreen.style.display = 'flex';
+
+                // Show tooltip with restart instructions
+                setTimeout(() => {
+                    showTooltip('Press R to restart or click Restart button', 3000);
+                }, 1000);
+            }
+
             // Learning: penalize the last state-action pair that led to game over
             if (aiLevel === "learning" && lastState && lastAction) {
                 const stateKey = getStateKey(lastState);
@@ -2562,6 +2574,15 @@
         document.addEventListener('keydown', (e) => {
             // Allow keyboard control only in human mode or when AI is inactive
             if (isAIActive && aiLevel !== 'human') return;
+
+            // Don't allow movement if game is over (except for 'R' to restart)
+            if (isGameOver && e.key !== 'r' && e.key !== 'R') {
+                // Show a hint to restart if trying to move after game over
+                if (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+                    showTooltip('Game Over! Press R to restart', 2000);
+                }
+                return;
+            }
 
             // Start the game if it's not running and a direction key is pressed
             if (!isGameRunning && (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft')) {
