@@ -8,9 +8,10 @@
     <style>
         canvas { transform: translateZ(0); } /* Force GPU acceleration */
     </style>
-    <!-- Simplified Deep AI Implementation (no TensorFlow dependency) -->
+    <!-- AI Implementations -->
     <script src="simplified-deep-ai.js"></script>
     <script src="deep-ai-function.js"></script>
+    <script src="enhanced-deep-ai.js"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Animate.css for animations -->
@@ -1066,6 +1067,7 @@
         <button id="resetBtn">Reset Game</button>
         <select id="aiLevel">
             <option value="human">Human Player</option>
+            <option value="enhanced">Enhanced AI (Trainable)</option>
             <option value="deep">Smart AI (GPU)</option>
             <option value="advanced">Simple AI</option>
         </select>
@@ -1898,19 +1900,40 @@
 
         // Train the model on multiple episodes
         async function trainModel(episodes) {
-            // Check if simplified deep AI is available
-            if (!window.simplifiedDeepAI) {
-                // Initialize the simplified deep AI if not already done
-                try {
-                    window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
-                    // Try to load saved model
-                    window.simplifiedDeepAI.loadModel();
-                    showTooltip('Initialized simplified deep learning AI', 2000);
-                } catch (error) {
-                    console.error('Error initializing simplified deep AI:', error);
-                    alert('Could not initialize the AI training system. Please try again.');
-                    return;
+            // Check which AI mode we're in
+            if (aiLevel === 'enhanced') {
+                // Initialize the enhanced deep AI if not already done
+                if (!window.enhancedDeepAI) {
+                    try {
+                        window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
+                        // Try to load saved model
+                        window.enhancedDeepAI.loadModel();
+                        showTooltip('Initialized enhanced deep learning AI', 2000);
+                    } catch (error) {
+                        console.error('Error initializing enhanced deep AI:', error);
+                        alert('Could not initialize the enhanced AI training system. Please try again.');
+                        return;
+                    }
                 }
+            } else if (aiLevel === 'deep') {
+                // Check if simplified deep AI is available
+                if (!window.simplifiedDeepAI) {
+                    // Initialize the simplified deep AI if not already done
+                    try {
+                        window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                        // Try to load saved model
+                        window.simplifiedDeepAI.loadModel();
+                        showTooltip('Initialized simplified deep learning AI', 2000);
+                    } catch (error) {
+                        console.error('Error initializing simplified deep AI:', error);
+                        alert('Could not initialize the AI training system. Please try again.');
+                        return;
+                    }
+                }
+            } else {
+                // Not in a trainable AI mode
+                alert('Please select either Enhanced AI or Smart AI mode to train.');
+                return;
             }
 
             // Reset training statistics
@@ -1946,9 +1969,15 @@
             turboMode = (trainingMode === 'turbo');
 
             try {
-                // Get current training stats
-                const startStats = window.simplifiedDeepAI.getTrainingStats();
-                showTooltip(`Starting training with ${episodes} episodes. Current memory: ${startStats.memorySize} samples`, 3000);
+                // Get current training stats based on AI mode
+                let startStats;
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    startStats = window.enhancedDeepAI.getTrainingStats();
+                    showTooltip(`Starting training with ${episodes} episodes. Games played: ${startStats.gamesPlayed}`, 3000);
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
+                    startStats = window.simplifiedDeepAI.getTrainingStats();
+                    showTooltip(`Starting training with ${episodes} episodes. Current memory: ${startStats.memorySize} samples`, 3000);
+                }
 
                 if (turboMode) {
                     // Turbo mode: Run episodes in parallel without visualization
@@ -1983,11 +2012,14 @@
                         maxTrainingScoreValue.textContent = trainingMaxScore;
                         epsValue.textContent = episodesPerSecond;
 
-                        // Get current training stats from simplified deep AI
-                        const stats = window.simplifiedDeepAI.getTrainingStats();
-
-                        // Update training status with current stats
-                        trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
+                        // Get current training stats based on AI mode
+                        if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                            const stats = window.enhancedDeepAI.getTrainingStats();
+                            trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
+                        } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
+                            const stats = window.simplifiedDeepAI.getTrainingStats();
+                            trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Memory: ${stats.memorySize} samples`;
+                        }
 
                         // Allow UI to update based on speed setting
                         await new Promise(resolve => setTimeout(resolve, 100 / speedMultiplier));
@@ -1997,9 +2029,15 @@
                 // Training complete
                 isTraining = false;
 
-                // Get final training stats
-                const finalStats = window.simplifiedDeepAI.getTrainingStats();
-                trainingStatus.textContent = `Trained: ${finalStats.trainingCount} batches, Memory: ${finalStats.memorySize} samples`;
+                // Get final training stats based on AI mode
+                let finalStats;
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    finalStats = window.enhancedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Trained: ${finalStats.trainingCount} batches, Games: ${finalStats.gamesPlayed}, High Score: ${finalStats.highScore}`;
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
+                    finalStats = window.simplifiedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Trained: ${finalStats.trainingCount} batches, Memory: ${finalStats.memorySize} samples`;
+                }
                 trainingProgressBar.style.width = '100%';
 
                 // Reset training button
@@ -2012,9 +2050,14 @@
 
                 showTooltip(`Training complete! Avg score: ${finalAvgScore}, Max: ${trainingMaxScore}`, 5000);
 
-                // Save the model automatically
-                window.simplifiedDeepAI.saveModel();
-                showTooltip('Model saved automatically!', 3000);
+                // Save the model automatically based on AI mode
+                if (aiLevel === 'enhanced' && window.enhancedDeepAI) {
+                    window.enhancedDeepAI.saveModel();
+                    showTooltip('Enhanced AI model saved automatically!', 3000);
+                } else if (aiLevel === 'deep' && window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI.saveModel();
+                    showTooltip('Smart AI model saved automatically!', 3000);
+                }
 
                 // Resume game if it was running
                 if (wasRunning) {
@@ -2269,6 +2312,22 @@
                     }
                     // Apply a positive reward for actions that led to food
                     qTable[stateKey][lastAction] += 1.0;
+                }
+                // For enhanced AI: reward the action that led to food
+                else if (aiLevel === "enhanced" && window.enhancedDeepAI) {
+                    // Get current state
+                    const state = getState(head);
+                    state.headX = head.x;
+                    state.headY = head.y;
+                    state.foodX = food.x;
+                    state.foodY = food.y;
+
+                    // Notify the enhanced AI about food eaten
+                    window.enhancedDeepAI.handleFoodEaten(state);
+
+                    // Update training status
+                    const stats = window.enhancedDeepAI.getTrainingStats();
+                    trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
                 }
                 // For deep learning AI: reward the action that led to food
                 else if (aiLevel === "deep" && window.simplifiedDeepAI) {
@@ -2606,6 +2665,23 @@
                 }
                 // Apply a large negative reward for actions that led to death
                 qTable[stateKey][lastAction] -= 1.0;
+            }
+            // For enhanced AI: notify about game over
+            else if (aiLevel === "enhanced" && window.enhancedDeepAI) {
+                // Get final state
+                const head = snake[0];
+                const state = getState(head);
+                state.headX = head.x;
+                state.headY = head.y;
+                state.foodX = food.x;
+                state.foodY = food.y;
+
+                // Notify the enhanced AI about game over with score
+                window.enhancedDeepAI.handleGameOver(state, score);
+
+                // Update training status
+                const stats = window.enhancedDeepAI.getTrainingStats();
+                trainingStatus.textContent = `Training: ${stats.trainingCount} batches, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore}`;
             }
             // For deep learning AI: notify about game over
             else if (aiLevel === "deep" && window.simplifiedDeepAI) {
@@ -3415,6 +3491,79 @@
             nextDirection = directions[chosenAction] || { x: 1, y: 0 }; // Default to right if something goes wrong
         }
 
+        // Enhanced AI decision making with rule-based reinforcement learning
+        async function makeEnhancedAIDecision() {
+            try {
+                // Initialize the enhanced deep AI if not already done
+                if (!window.enhancedDeepAI) {
+                    window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
+                    // Try to load saved model
+                    window.enhancedDeepAI.loadModel();
+                }
+
+                // Get current state
+                const head = snake[0];
+                const state = getState(head);
+                state.headX = head.x;
+                state.headY = head.y;
+                state.foodX = food.x;
+                state.foodY = food.y;
+
+                // Get action from enhanced deep AI
+                const chosenAction = window.enhancedDeepAI.getAction(state, direction, checkCollision);
+
+                // Set the direction based on the chosen action
+                switch (chosenAction) {
+                    case 'up':
+                        if (direction !== 'down') { // Prevent 180-degree turns
+                            direction = 'up';
+                        } else {
+                            // If trying to go in the opposite direction, use basic AI
+                            makeAdvancedAIDecision();
+                            return;
+                        }
+                        break;
+                    case 'right':
+                        if (direction !== 'left') {
+                            direction = 'right';
+                        } else {
+                            makeAdvancedAIDecision();
+                            return;
+                        }
+                        break;
+                    case 'down':
+                        if (direction !== 'up') {
+                            direction = 'down';
+                        } else {
+                            makeAdvancedAIDecision();
+                            return;
+                        }
+                        break;
+                    case 'left':
+                        if (direction !== 'right') {
+                            direction = 'left';
+                        } else {
+                            makeAdvancedAIDecision();
+                            return;
+                        }
+                        break;
+                    default:
+                        // If no valid action, use basic AI
+                        makeAdvancedAIDecision();
+                        return;
+                }
+
+                // Clear path visualization
+                currentPath = [];
+            } catch (error) {
+                console.error('Enhanced AI decision error:', error);
+                // Show user-friendly message
+                showTooltip('Enhanced AI error - using basic AI instead', 3000);
+                // Fall back to basic AI if enhanced AI fails
+                makeAdvancedAIDecision();
+            }
+        }
+
         // Deep learning AI decision making with simplified implementation (no TensorFlow dependency)
         async function makeDeepAIDecision() {
             try {
@@ -3502,6 +3651,9 @@
             if (aiLevel === "deep") {
                 // Smart AI using deep learning (async, but we can't await here)
                 makeDeepAIDecision().catch(err => console.error('Smart AI error:', err));
+            } else if (aiLevel === "enhanced") {
+                // Enhanced AI using rule-based reinforcement learning
+                makeEnhancedAIDecision().catch(err => console.error('Enhanced AI error:', err));
             } else {
                 // Simple AI using pathfinding
                 makeAdvancedAIDecision();
@@ -3584,6 +3736,18 @@
                 document.getElementById('toggleAIBtn').disabled = false; // Enable AI toggle in AI modes
                 if (!isAIActive) {
                     aiStatus.textContent = 'AI: Inactive';
+                } else if (aiLevel === 'enhanced') {
+                    // Check if we have a saved model and get training stats
+                    const modelStatus = localStorage.getItem('enhanced-deep-ai-model') ? '💾 SAVED' : 'NEW';
+
+                    // Get training statistics if available
+                    let trainingInfo = '';
+                    if (window.enhancedDeepAI) {
+                        const stats = window.enhancedDeepAI.getTrainingStats();
+                        trainingInfo = ` (Training: ${stats.trainingCount}, Games: ${stats.gamesPlayed}, High Score: ${stats.highScore})`;
+                    }
+
+                    aiStatus.textContent = `AI: Enhanced (${modelStatus})${trainingInfo}`;
                 } else if (aiLevel === 'deep') {
                     // Check if we have a saved model and get training stats
                     const modelStatus = localStorage.getItem('simplified-deep-ai-model') ? '💾 SAVED' : 'NEW';
