@@ -423,6 +423,7 @@
         <button id="toggleAIBtn">Toggle AI</button>
         <button id="resetBtn">Reset Game</button>
         <select id="aiLevel">
+            <option value="human">Human Player</option>
             <option value="deep">Deep Learning AI</option>
             <option value="learning">Q-Learning AI</option>
             <option value="advanced">Advanced AI</option>
@@ -2523,7 +2524,13 @@
 
         // Handle keyboard input
         document.addEventListener('keydown', (e) => {
-            if (isAIActive) return; // Ignore keyboard when AI is active
+            // Allow keyboard control only in human mode or when AI is inactive
+            if (isAIActive && aiLevel !== 'human') return;
+
+            // Start the game if it's not running and a direction key is pressed
+            if (!isGameRunning && (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft')) {
+                startGame();
+            }
 
             // Prevent opposite direction
             const oppositeDirection = { x: -direction.x, y: -direction.y };
@@ -2532,25 +2539,35 @@
                 case 'ArrowUp':
                     if (direction.y !== 1) { // Not going down
                         nextDirection = { x: 0, y: -1 };
+                        e.preventDefault(); // Prevent page scrolling
                     }
                     break;
                 case 'ArrowRight':
                     if (direction.x !== -1) { // Not going left
                         nextDirection = { x: 1, y: 0 };
+                        e.preventDefault();
                     }
                     break;
                 case 'ArrowDown':
                     if (direction.y !== -1) { // Not going up
                         nextDirection = { x: 0, y: 1 };
+                        e.preventDefault();
                     }
                     break;
                 case 'ArrowLeft':
                     if (direction.x !== 1) { // Not going right
                         nextDirection = { x: -1, y: 0 };
+                        e.preventDefault();
                     }
                     break;
                 case ' ': // Space bar to toggle game
                     toggleGame();
+                    e.preventDefault();
+                    break;
+                case 'r': // 'r' key to reset
+                case 'R':
+                    resetGame();
+                    e.preventDefault();
                     break;
             }
         });
@@ -2560,17 +2577,24 @@
 
         // Update AI status display
         function updateAIStatus() {
-            if (!isAIActive) {
-                aiStatus.textContent = 'AI: Inactive';
-            } else if (aiLevel === 'deep') {
-                const backend = tf.getBackend() || 'cpu';
-                aiStatus.textContent = `AI: Deep Learning (${backend.toUpperCase()}, Exp: ${Math.round(explorationRate * 100)}%, Mem: ${replayMemory.length})`;
-            } else if (aiLevel === 'learning') {
-                aiStatus.textContent = `AI: Q-Learning (Exp: ${Math.round(explorationRate * 100)}%, Games: ${gameCount})`;
-            } else if (aiLevel === 'advanced') {
-                aiStatus.textContent = 'AI: Advanced';
+            if (aiLevel === 'human') {
+                aiStatus.textContent = 'Mode: Human Player';
+                isAIActive = false; // Force AI to be inactive in human mode
+                document.getElementById('toggleAIBtn').disabled = true; // Disable AI toggle in human mode
             } else {
-                aiStatus.textContent = 'AI: Basic';
+                document.getElementById('toggleAIBtn').disabled = false; // Enable AI toggle in AI modes
+                if (!isAIActive) {
+                    aiStatus.textContent = 'AI: Inactive';
+                } else if (aiLevel === 'deep') {
+                    const backend = tf.getBackend() || 'cpu';
+                    aiStatus.textContent = `AI: Deep Learning (${backend.toUpperCase()}, Exp: ${Math.round(explorationRate * 100)}%, Mem: ${replayMemory.length})`;
+                } else if (aiLevel === 'learning') {
+                    aiStatus.textContent = `AI: Q-Learning (Exp: ${Math.round(explorationRate * 100)}%, Games: ${gameCount})`;
+                } else if (aiLevel === 'advanced') {
+                    aiStatus.textContent = 'AI: Advanced';
+                } else {
+                    aiStatus.textContent = 'AI: Basic';
+                }
             }
         }
 
@@ -2583,12 +2607,49 @@
         // Change AI level
         function changeAILevel() {
             aiLevel = aiLevelSelect.value;
+
+            // Handle human mode
+            if (aiLevel === 'human') {
+                // Show keyboard controls hint
+                showTooltip('Use arrow keys to control the snake!', 3000);
+            }
+
             updateAIStatus();
 
             // Clear current path if switching to basic AI
             if (aiLevel === 'basic') {
                 currentPath = [];
             }
+        }
+
+        // Function to show temporary tooltip
+        function showTooltip(message, duration) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip visible';
+            tooltip.style.position = 'fixed';
+            tooltip.style.top = '50%';
+            tooltip.style.left = '50%';
+            tooltip.style.transform = 'translate(-50%, -50%)';
+            tooltip.style.zIndex = '1000';
+            tooltip.style.padding = '15px 25px';
+            tooltip.style.fontSize = '18px';
+            tooltip.style.fontWeight = 'bold';
+            tooltip.style.boxShadow = '0 5px 20px rgba(0, 0, 0, 0.3)';
+            tooltip.textContent = message;
+
+            document.body.appendChild(tooltip);
+
+            // Add animated entrance
+            tooltip.classList.add('animate__animated', 'animate__bounceIn');
+
+            // Remove after duration
+            setTimeout(() => {
+                tooltip.classList.remove('animate__bounceIn');
+                tooltip.classList.add('animate__fadeOut');
+                setTimeout(() => {
+                    document.body.removeChild(tooltip);
+                }, 500);
+            }, duration);
         }
 
         // Button event listeners
@@ -2810,7 +2871,15 @@
                         <li><i class="fas fa-play"></i> <strong>Resume Game</strong> - Start or resume the game</li>
                         <li><i class="fas fa-robot"></i> <strong>Toggle AI</strong> - Turn AI control on/off</li>
                         <li><i class="fas fa-redo"></i> <strong>Reset Game</strong> - Start a new game</li>
-                        <li><i class="fas fa-graduation-cap"></i> <strong>Deep Learning</strong> - Select AI mode from dropdown</li>
+                        <li><i class="fas fa-graduation-cap"></i> <strong>Mode Selection</strong> - Choose Human or AI mode</li>
+                    </ul>
+
+                    <h3><i class="fas fa-keyboard"></i> Human Mode Controls</h3>
+                    <ul>
+                        <li><i class="fas fa-arrow-up"></i> <strong>Arrow Keys</strong> - Control snake direction</li>
+                        <li><i class="fas fa-keyboard"></i> <strong>Spacebar</strong> - Pause/resume game</li>
+                        <li><i class="fas fa-keyboard"></i> <strong>R key</strong> - Reset game</li>
+                        <li><i class="fas fa-info-circle"></i> <strong>Tip</strong> - Select "Human Player" from dropdown to play yourself</li>
                     </ul>
 
                     <h3><i class="fas fa-cogs"></i> Training Options</h3>
@@ -2861,7 +2930,7 @@
                 { element: document.getElementById('startBtn'), text: 'Start or pause the game' },
                 { element: document.getElementById('toggleAIBtn'), text: 'Let AI control the snake' },
                 { element: document.getElementById('resetBtn'), text: 'Reset the game' },
-                { element: document.getElementById('aiLevelSelect'), text: 'Choose AI algorithm - Deep Learning uses your GPU' },
+                { element: document.getElementById('aiLevelSelect'), text: 'Choose Human Player or AI algorithm - Deep Learning uses your GPU' },
                 { element: document.getElementById('trainBtn'), text: 'Train the AI using your GPU' },
                 { element: document.getElementById('trainEpisodes'), text: 'Number of games to train (higher = better learning)' },
                 { element: document.getElementById('trainSpeed'), text: 'Turbo mode trains faster without visualization' },

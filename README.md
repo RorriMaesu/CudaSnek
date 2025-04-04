@@ -6,7 +6,7 @@ A self-playing Snake game that uses deep reinforcement learning with TensorFlow.
 
 - Deep reinforcement learning with neural networks
 - GPU acceleration using WebGL and TensorFlow.js
-- Multiple AI modes: Basic, Advanced, Q-Learning, and Deep Learning
+- Multiple modes: Human Player, Basic AI, Advanced AI, Q-Learning, and Deep Learning
 - Real-time training visualization
 - Turbo training mode for maximum GPU utilization
 - Model export/import for sharing trained models
@@ -16,10 +16,17 @@ A self-playing Snake game that uses deep reinforcement learning with TensorFlow.
 
 ## How to Use
 
+### AI Mode
 1. Select an AI mode (Deep Learning for GPU acceleration)
 2. Watch the AI play and learn
 3. Train the model using the "Train on GPU" button
 4. Save or export your trained model
+
+### Human Mode
+1. Select "Human Player" from the dropdown menu
+2. Use arrow keys to control the snake
+3. Press spacebar to pause/resume
+4. Press 'R' key to reset the game
 
 ## Technologies
 
