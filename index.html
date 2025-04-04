@@ -935,6 +935,15 @@
                     return;
                 }
 
+                // Ensure model is compiled
+                if (!model.compiled) {
+                    console.log('Model not compiled, compiling now...');
+                    model.compile({
+                        optimizer: tf.train.adam(0.001),
+                        loss: 'meanSquaredError'
+                    });
+                }
+
                 // Sample random batch from replay memory
                 const batch = [];
                 const batchIndices = [];
@@ -2596,8 +2605,15 @@
                     try {
                         // Try to load saved model first
                         model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+
+                        // Compile the loaded model - this is necessary for training
+                        model.compile({
+                            optimizer: tf.train.adam(0.001),
+                            loss: 'meanSquaredError'
+                        });
+
                         window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                        console.log('Loaded saved model in makeDeepAIDecision');
+                        console.log('Loaded and compiled saved model in makeDeepAIDecision');
                     } catch (err) {
                         // If loading fails, create a new model
                         console.log('Creating new model in makeDeepAIDecision:', err);
@@ -3006,8 +3022,15 @@
             try {
                 // Load model from IndexedDB
                 model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+
+                // Compile the loaded model - this is necessary for training
+                model.compile({
+                    optimizer: tf.train.adam(0.001),
+                    loss: 'meanSquaredError'
+                });
+
                 window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                trainingStatus.textContent = 'Model loaded successfully';
+                trainingStatus.textContent = 'Model loaded and compiled successfully';
 
                 // Update AI status to show we're using a saved model
                 updateAIStatus();
@@ -3133,9 +3156,16 @@
                         try {
                             // Attempt to load model from IndexedDB
                             model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+
+                            // Compile the loaded model - this is necessary for training
+                            model.compile({
+                                optimizer: tf.train.adam(0.001),
+                                loss: 'meanSquaredError'
+                            });
+
                             window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                            trainingStatus.textContent = 'Loaded saved model from browser storage';
-                            console.log('Successfully loaded saved model');
+                            trainingStatus.textContent = 'Loaded and compiled saved model from browser storage';
+                            console.log('Successfully loaded and compiled saved model');
                         } catch (err) {
                             console.log('No saved model found, creating new model:', err);
                             model = await createModel();
