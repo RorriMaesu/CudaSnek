@@ -798,10 +798,10 @@
         let score = 0;
         let gameSpeed = 100; // milliseconds between updates
         let gameInterval;
-        let isAIActive = true;
+        let isAIActive = false; // Default to AI off
         let isGameRunning = false;
         let isGameOver = false;
-        let aiLevel = "deep"; // Default to deep learning AI
+        let aiLevel = "human"; // Default to human mode
         let currentPath = []; // Store the current path for visualization
 
         // Learning AI state
@@ -3527,11 +3527,15 @@
 
         // Initialize the application
         async function initializeApp() {
+            // Set default mode to human
+            aiLevel = 'human';
+            aiLevelSelect.value = 'human';
+
             // Check if TensorFlow.js is loaded
             if (typeof tf === 'undefined') {
                 console.error('TensorFlow.js not loaded. Deep learning features will not work.');
                 alert('TensorFlow.js could not be loaded. Deep learning features will not be available. Check your internet connection and try again.');
-                // Default to advanced AI if TensorFlow is not available
+                // Default to advanced AI if TensorFlow is not available and user wants to use AI
                 aiLevel = 'advanced';
                 aiLevelSelect.value = 'advanced';
 
@@ -3632,11 +3636,11 @@
         // Start the application
         initializeApp().catch(error => {
             console.error('Fatal error during initialization:', error);
-            alert('An error occurred during initialization. The game will use basic AI instead.');
+            alert('An error occurred during initialization. The game will start in human mode.');
 
-            // Emergency fallback
-            aiLevel = 'basic';
-            aiLevelSelect.value = 'basic';
+            // Emergency fallback to human mode
+            aiLevel = 'human';
+            aiLevelSelect.value = 'human';
             initGame();
             updateAIStatus();
             startGame();
