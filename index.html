@@ -508,10 +508,8 @@
         <button id="resetBtn">Reset Game</button>
         <select id="aiLevel">
             <option value="human">Human Player</option>
-            <option value="deep">Deep Learning AI</option>
-            <option value="learning">Q-Learning AI</option>
-            <option value="advanced">Advanced AI</option>
-            <option value="basic">Basic AI</option>
+            <option value="deep">Smart AI (GPU)</option>
+            <option value="advanced">Simple AI</option>
         </select>
     </div>
 
@@ -954,10 +952,24 @@
                     window.modelCompiled = true;
                 }
 
-                // Sample random batch from replay memory
+                // Update training status
+                trainingStatus.textContent = `Training in progress (${replayMemory.length} samples)`;
+
+                // Sample random batch from replay memory with priority for recent experiences
                 const batch = [];
                 const batchIndices = [];
 
+                // Include some recent experiences (last 20%)
+                const recentCount = Math.min(Math.floor(miniBatchSize * 0.2), replayMemory.length);
+                const startIdx = Math.max(0, replayMemory.length - recentCount);
+
+                for (let i = 0; i < recentCount; i++) {
+                    const index = startIdx + i;
+                    batchIndices.push(index);
+                    batch.push(replayMemory[index]);
+                }
+
+                // Fill the rest with random samples
                 while (batch.length < miniBatchSize) {
                     const index = Math.floor(Math.random() * replayMemory.length);
                     if (!batchIndices.includes(index)) {
@@ -996,11 +1008,27 @@
 
                     // Train the model with updated Q-values
                     updatedQValues = tf.tensor2d(qValuesArray);
-                    await model.fit(states, updatedQValues, {
-                        epochs: 1,
+
+                    // Train with more epochs for better learning
+                    const result = await model.fit(states, updatedQValues, {
+                        epochs: 3,  // Increased from 1 to 3 for better learning
                         batchSize: miniBatchSize,
-                        verbose: 0
+                        verbose: 1,  // Show training progress
+                        callbacks: {
+                            onEpochEnd: (epoch, logs) => {
+                                // Update training status with loss information
+                                const loss = logs.loss.toFixed(4);
+                                trainingStatus.textContent = `Training epoch ${epoch+1}/3 (loss: ${loss})`;
+                            }
+                        }
                     });
+
+                    // Update status with final loss
+                    const finalLoss = result.history.loss[result.history.loss.length - 1].toFixed(4);
+                    trainingStatus.textContent = `Training complete (loss: ${finalLoss})`;
+
+                    // Show a visual indicator of training progress
+                    showTooltip(`Training batch complete (loss: ${finalLoss})`, 1000);
                 } catch (trainingError) {
                     console.error('Error during training:', trainingError);
                     // If we're in the middle of training, update the status
@@ -1337,8 +1365,16 @@
 
         // Train the model on multiple episodes
         async function trainModel(episodes) {
+            // Check if TensorFlow.js is available
+            if (typeof tf === 'undefined') {
+                alert('TensorFlow.js is not available. Cannot train the AI.');
+                return;
+            }
+
+            // Create model if it doesn't exist
             if (!model) {
-                model = createModel();
+                showTooltip('Creating new neural network model...', 2000);
+                model = await createModel();
             }
 
             // Reset training statistics
@@ -1351,6 +1387,14 @@
             isTraining = true;
             trainingStatus.textContent = 'Training: 0%';
             trainingProgressBar.style.width = '0%';
+
+            // Show a tooltip to indicate training has started
+            showTooltip(`Starting training with ${episodes} episodes...`, 3000);
+
+            // Change the training button text to show it's in progress
+            const originalBtnText = trainBtn.textContent;
+            trainBtn.textContent = 'Training...';
+            trainBtn.disabled = true;
 
             // Start GPU monitoring
             startGpuMonitoring();
@@ -1410,6 +1454,7 @@
                 // Training complete
                 isTraining = false;
                 trainingStatus.textContent = `Trained on ${episodes} episodes`;
+                trainingProgressBar.style.width = '100%';
 
                 // Stop GPU monitoring
                 stopGpuMonitoring();
@@ -1417,12 +1462,31 @@
                 // Final GPU status update
                 updateGpuStatus();
 
+                // Reset training button
+                trainBtn.textContent = originalBtnText;
+                trainBtn.disabled = false;
+
+                // Show completion message with stats
+                const finalAvgScore = trainingScores.length > 0 ?
+                    (trainingScores.reduce((a, b) => a + b, 0) / trainingScores.length).toFixed(1) : 0;
+
+                showTooltip(`Training complete! Avg score: ${finalAvgScore}, Max: ${trainingMaxScore}`, 5000);
+
+                // Suggest saving the model
+                setTimeout(() => {
+                    showTooltip('Remember to save your trained model!', 3000);
+                }, 5500);
+
                 // Resume game if it was running
                 if (wasRunning) {
                     // Reset game state
                     initGame();
                     startGame();
                 }
+
+                // Set flag to indicate we're using a trained model
+                window.usingSavedModel = true;
+                updateAIStatus();
 
                 // Reduce exploration rate after training
                 explorationRate = Math.max(0.05, explorationRate * 0.5);
@@ -2729,16 +2793,11 @@
         // Main AI decision making function that chooses between algorithms
         function makeAIDecision() {
             if (aiLevel === "deep") {
-                // Deep learning AI (async, but we can't await here)
-                makeDeepAIDecision().catch(err => console.error('Deep AI error:', err));
-            } else if (aiLevel === "learning") {
-                makeLearningAIDecision();
-                currentPath = []; // Clear path visualization for learning AI
-            } else if (aiLevel === "advanced") {
-                makeAdvancedAIDecision();
+                // Smart AI using deep learning (async, but we can't await here)
+                makeDeepAIDecision().catch(err => console.error('Smart AI error:', err));
             } else {
-                makeBasicAIDecision();
-                currentPath = []; // Clear path visualization for basic AI
+                // Simple AI using pathfinding
+                makeAdvancedAIDecision();
             }
         }
 
@@ -2817,13 +2876,9 @@
                 } else if (aiLevel === 'deep') {
                     const backend = tf.getBackend() || 'cpu';
                     const modelStatus = window.usingSavedModel ? '💾 SAVED' : 'NEW';
-                    aiStatus.textContent = `AI: Deep Learning (${backend.toUpperCase()}, ${modelStatus}, Exp: ${Math.round(explorationRate * 100)}%, Mem: ${replayMemory.length})`;
-                } else if (aiLevel === 'learning') {
-                    aiStatus.textContent = `AI: Q-Learning (Exp: ${Math.round(explorationRate * 100)}%, Games: ${gameCount})`;
-                } else if (aiLevel === 'advanced') {
-                    aiStatus.textContent = 'AI: Advanced';
+                    aiStatus.textContent = `AI: Smart (${backend.toUpperCase()}, ${modelStatus}, Training: ${replayMemory.length} samples)`;
                 } else {
-                    aiStatus.textContent = 'AI: Basic';
+                    aiStatus.textContent = 'AI: Simple';
                 }
             }
         }
@@ -3289,9 +3344,8 @@
                             <h3><i class="fas fa-graduation-cap"></i> Mode Selection</h3>
                             <ul>
                                 <li><i class="fas fa-user"></i> <strong>Human Player</strong> - Play yourself with arrow keys</li>
-                                <li><i class="fas fa-robot"></i> <strong>Basic/Advanced</strong> - Simple AI algorithms</li>
-                                <li><i class="fas fa-brain"></i> <strong>Q-Learning</strong> - Learns from experience</li>
-                                <li><i class="fas fa-microchip"></i> <strong>Deep Learning</strong> - Uses GPU for neural network</li>
+                                <li><i class="fas fa-robot"></i> <strong>Simple AI</strong> - Basic pathfinding algorithm</li>
+                                <li><i class="fas fa-microchip"></i> <strong>Smart AI (GPU)</strong> - Neural network that learns as it plays</li>
                             </ul>
 
                             <h3><i class="fas fa-keyboard"></i> Human Controls</h3>
@@ -3305,7 +3359,7 @@
                         <div style="flex: 1; min-width: 180px;">
                             <h3><i class="fas fa-cogs"></i> Training Guide</h3>
                             <ol style="padding-left: 15px;">
-                                <li>Select <strong>Deep Learning</strong> mode</li>
+                                <li>Select <strong>Smart AI (GPU)</strong> mode</li>
                                 <li>Set <strong>Episodes</strong> (1000+ recommended)</li>
                                 <li>Click <strong>Train on GPU</strong> button</li>
                                 <li>Wait for training to complete</li>
