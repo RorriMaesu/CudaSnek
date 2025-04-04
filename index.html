@@ -8,12 +8,24 @@
     <style>
         canvas { transform: translateZ(0); } /* Force GPU acceleration */
     </style>
-    <!-- TensorFlow.js for GPU-accelerated learning -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
-    <!-- TensorFlow.js WebGL backend -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.18.0/dist/tf-backend-webgl.min.js"></script>
-    <!-- TensorFlow.js CPU backend as fallback -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@3.18.0/dist/tf-backend-cpu.min.js"></script>
+    <!-- TensorFlow.js with error handling -->
+    <script>
+        // Define a global flag to track TensorFlow.js loading status
+        window.tfLoadingStatus = 'loading';
+
+        // Handle TensorFlow.js loading errors
+        function handleTfError(error) {
+            console.error('Error loading TensorFlow.js:', error);
+            window.tfLoadingStatus = 'error';
+            // We'll handle this in the game code
+        }
+    </script>
+    <!-- TensorFlow.js CPU backend as primary (more reliable) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@3.18.0/dist/tf-backend-cpu.min.js" onerror="handleTfError(event)"></script>
+    <!-- TensorFlow.js core -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js" onerror="handleTfError(event)" onload="window.tfLoadingStatus = 'loaded'"></script>
+    <!-- TensorFlow.js WebGL backend (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.18.0/dist/tf-backend-webgl.min.js" onerror="console.warn('WebGL backend failed to load, using CPU only')"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Animate.css for animations -->
@@ -1250,10 +1262,29 @@
 
         // Initialize TensorFlow.js with GPU support and robust fallback
         async function initializeTensorFlow() {
-            if (!tf) {
-                console.error('TensorFlow.js not loaded');
+            // Check if TensorFlow.js loaded successfully
+            if (window.tfLoadingStatus === 'error' || !tf) {
+                console.error('TensorFlow.js not loaded properly');
                 showTooltip('TensorFlow.js not loaded - using basic AI instead', 3000);
                 return false;
+            }
+
+            // Wait for loading to complete if still in progress
+            if (window.tfLoadingStatus === 'loading') {
+                console.log('Waiting for TensorFlow.js to finish loading...');
+                // Wait up to 2 seconds for loading to complete
+                for (let i = 0; i < 20; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    if (window.tfLoadingStatus === 'loaded') {
+                        console.log('TensorFlow.js finished loading');
+                        break;
+                    }
+                    if (window.tfLoadingStatus === 'error' || !tf) {
+                        console.error('TensorFlow.js loading failed during wait');
+                        showTooltip('TensorFlow.js loading failed - using basic AI instead', 3000);
+                        return false;
+                    }
+                }
             }
 
             // Force TensorFlow.js to initialize immediately
@@ -1309,9 +1340,20 @@
                         // Check if using software renderer
                         if (renderer.toLowerCase().includes('swiftshader') ||
                             renderer.toLowerCase().includes('software') ||
-                            renderer.toLowerCase().includes('llvmpipe')) {
+                            renderer.toLowerCase().includes('llvmpipe') ||
+                            renderer.toLowerCase().includes('angle') ||
+                            renderer.toLowerCase().includes('mesa') ||
+                            renderer.toLowerCase().includes('virgl')) {
                             console.warn('Software renderer detected - not using actual GPU hardware');
                             gpuDetected = false;
+
+                            // Force CPU backend immediately to avoid WebGL initialization errors
+                            try {
+                                await tf.setBackend('cpu');
+                                console.log('Preemptively switched to CPU backend due to software renderer');
+                            } catch (e) {
+                                console.error('Failed to preemptively set CPU backend:', e);
+                            }
                         }
                     }
                 }
@@ -3459,10 +3501,24 @@
                 }
 
                 // Check if we're using the correct backend
-                const currentBackend = tf.getBackend();
-                if (!currentBackend) {
-                    console.error('No TensorFlow backend available');
+                let currentBackend;
+                try {
+                    currentBackend = tf.getBackend();
+                    if (!currentBackend) {
+                        throw new Error('No TensorFlow backend available');
+                    }
+                } catch (backendError) {
+                    console.error('TensorFlow backend error:', backendError);
                     showTooltip('TensorFlow backend not available - using basic AI', 3000);
+
+                    // Try to force switch to advanced AI mode
+                    if (aiLevel === 'deep') {
+                        console.log('Automatically switching to advanced AI mode due to TensorFlow backend issues');
+                        aiLevel = 'advanced';
+                        aiLevelSelect.value = 'advanced';
+                        updateAIStatus();
+                    }
+
                     makeBasicAIDecision();
                     return;
                 }
@@ -3761,10 +3817,46 @@
             updateAIStatus();
         }
 
-        // Change AI level
-        function changeAILevel() {
+        // Change AI level with improved error handling
+        async function changeAILevel() {
             const previousLevel = aiLevel;
-            aiLevel = aiLevelSelect.value;
+            const requestedLevel = aiLevelSelect.value;
+
+            // Special handling for deep learning mode
+            if (requestedLevel === 'deep') {
+                try {
+                    // Check if TensorFlow.js is available
+                    if (typeof tf === 'undefined') {
+                        throw new Error('TensorFlow.js not available');
+                    }
+
+                    // Try to initialize TensorFlow.js
+                    let tfInitialized = false;
+                    try {
+                        // First try to set CPU backend directly to avoid WebGL errors
+                        await tf.setBackend('cpu');
+                        await tf.ready();
+                        tfInitialized = true;
+                        console.log('Successfully initialized TensorFlow.js with CPU backend');
+                    } catch (tfError) {
+                        console.error('Error initializing TensorFlow.js:', tfError);
+                        throw new Error('TensorFlow initialization failed');
+                    }
+
+                    // If we get here, TensorFlow.js is working
+                    aiLevel = requestedLevel;
+                } catch (error) {
+                    console.error('Cannot use deep learning mode:', error);
+                    showTooltip(`Cannot use deep learning mode. Using advanced AI instead.`, 5000);
+
+                    // Fall back to advanced AI
+                    aiLevel = 'advanced';
+                    aiLevelSelect.value = 'advanced';
+                }
+            } else {
+                // For non-deep learning modes, just set the level
+                aiLevel = requestedLevel;
+            }
 
             // Handle human mode
             if (aiLevel === 'human') {
@@ -4059,16 +4151,24 @@
             fileInput.click();
         });
 
-        // Initialize the application
+        // Initialize the application with improved error handling
         async function initializeApp() {
             // Set default mode to human
             aiLevel = 'human';
             aiLevelSelect.value = 'human';
 
             // Check if TensorFlow.js is loaded
-            if (typeof tf === 'undefined') {
+            if (window.tfLoadingStatus === 'error' || typeof tf === 'undefined') {
                 console.error('TensorFlow.js not loaded. Deep learning features will not work.');
-                alert('TensorFlow.js could not be loaded. Deep learning features will not be available. Check your internet connection and try again.');
+                showTooltip('TensorFlow.js could not be loaded. Deep learning features will not be available.', 5000);
+
+                // Disable deep learning option in the dropdown
+                const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
+                if (deepOption) {
+                    deepOption.disabled = true;
+                    deepOption.text += ' (Not Available)';
+                }
+
                 // Default to advanced AI if TensorFlow is not available and user wants to use AI
                 aiLevel = 'advanced';
                 aiLevelSelect.value = 'advanced';
@@ -4080,25 +4180,83 @@
                 return;
             }
 
+            // Wait for TensorFlow.js to finish loading if it's still in progress
+            if (window.tfLoadingStatus === 'loading') {
+                console.log('Waiting for TensorFlow.js to finish loading...');
+                showTooltip('Initializing TensorFlow.js...', 2000);
+
+                // Wait up to 3 seconds for loading to complete
+                for (let i = 0; i < 30; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    if (window.tfLoadingStatus === 'loaded') {
+                        console.log('TensorFlow.js finished loading');
+                        break;
+                    }
+                    if (i === 29 || window.tfLoadingStatus === 'error') {
+                        console.error('TensorFlow.js loading timed out or failed');
+                        showTooltip('TensorFlow.js loading failed - deep learning disabled', 3000);
+
+                        // Disable deep learning option in the dropdown
+                        const deepOption = Array.from(aiLevelSelect.options).find(option => option.value === 'deep');
+                        if (deepOption) {
+                            deepOption.disabled = true;
+                            deepOption.text += ' (Not Available)';
+                        }
+
+                        // Default to advanced AI
+                        aiLevel = 'advanced';
+                        aiLevelSelect.value = 'advanced';
+                        await initGame();
+                        updateAIStatus();
+                        startGame();
+                        return;
+                    }
+                }
+            }
+
             console.log('TensorFlow.js loaded successfully. Using backend:', tf.getBackend());
 
-            // Initialize TensorFlow.js
+            // Initialize TensorFlow.js with improved error handling
             try {
+                // First try to set CPU backend directly (more reliable)
+                try {
+                    await tf.setBackend('cpu');
+                    console.log('Successfully set CPU backend as initial backend');
+                } catch (cpuError) {
+                    console.warn('Failed to set CPU backend:', cpuError);
+                }
+
                 // Force TensorFlow to initialize
                 await tf.ready();
                 console.log('TensorFlow.js initialized successfully');
 
-                // Check if WebGL is actually working
-                if (tf.getBackend() === 'webgl') {
+                // Get current backend
+                const currentBackend = tf.getBackend();
+                console.log('Current TensorFlow backend:', currentBackend);
+
+                // Try WebGL only if we're not already using it
+                if (currentBackend !== 'webgl') {
                     try {
-                        // Create a small tensor and perform an operation to verify WebGL works
+                        // Try to switch to WebGL
+                        await tf.setBackend('webgl');
+                        console.log('Successfully switched to WebGL backend');
+
+                        // Verify WebGL is working with a test operation
                         const testTensor = tf.tensor2d([[1, 2], [3, 4]]);
                         await testTensor.square().data();
                         testTensor.dispose();
+
+                        console.log('WebGL test successful');
                     } catch (webglError) {
-                        console.warn('WebGL operations failed, falling back to CPU:', webglError);
-                        await tf.setBackend('cpu');
-                        console.log('Switched to CPU backend after WebGL failure');
+                        console.warn('WebGL operations failed, using CPU:', webglError);
+
+                        // Make sure we're using CPU
+                        try {
+                            await tf.setBackend('cpu');
+                            console.log('Explicitly set CPU backend after WebGL failure');
+                        } catch (e) {
+                            console.error('Failed to set CPU backend after WebGL failure:', e);
+                        }
 
                         // Show a message to the user
                         trainingStatus.textContent = 'GPU not available - using CPU (slower)';
@@ -4108,6 +4266,21 @@
                         // Show a tooltip explaining the issue
                         showTooltip('WebGL not working - using CPU instead. Training will be slower.', 5000);
                     }
+                }
+
+                // Final check of which backend we're using
+                const finalBackend = tf.getBackend();
+                console.log('Final TensorFlow backend:', finalBackend);
+
+                // Update UI based on backend
+                if (finalBackend === 'webgl') {
+                    trainingStatus.textContent = 'GPU acceleration active';
+                    gpuValue.textContent = 'Active';
+                    gpuValue.style.color = '#4CAF50'; // Green
+                } else {
+                    trainingStatus.textContent = 'Using CPU (GPU not available)';
+                    gpuValue.textContent = 'CPU Only';
+                    gpuValue.style.color = '#f44336'; // Red
                 }
 
                 // Initialize the game with deep learning
