@@ -1248,15 +1248,22 @@
         let turboMode = false; // Flag for headless turbo training
         let parallelWorkers = 4; // Number of parallel simulations for turbo mode
 
-        // Initialize TensorFlow.js with GPU support
+        // Initialize TensorFlow.js with GPU support and robust fallback
         async function initializeTensorFlow() {
             if (!tf) {
                 console.error('TensorFlow.js not loaded');
+                showTooltip('TensorFlow.js not loaded - using basic AI instead', 3000);
                 return false;
             }
 
             // Force TensorFlow.js to initialize immediately
-            await tf.ready();
+            try {
+                await tf.ready();
+            } catch (readyError) {
+                console.error('Error initializing TensorFlow.js:', readyError);
+                showTooltip('Error initializing TensorFlow - using basic AI instead', 3000);
+                return false;
+            }
 
             // Check available backends
             const availableBackends = Object.keys(tf.engine().registryFactory);
@@ -1347,11 +1354,39 @@
 
                 // If WebGL failed or no GPU detected, use CPU backend
                 console.log('Using CPU backend');
-                await tf.setBackend('cpu');
-                trainingStatus.textContent = 'Using CPU (GPU not available)';
-                gpuValue.textContent = 'CPU Only';
-                gpuValue.style.color = '#f44336'; // Red
-                return false;
+                try {
+                    await tf.setBackend('cpu');
+                    console.log('Successfully set CPU backend');
+                    trainingStatus.textContent = 'Using CPU (GPU not available)';
+                    gpuValue.textContent = 'CPU Only';
+                    gpuValue.style.color = '#f44336'; // Red
+
+                    // Show a user-friendly message
+                    showTooltip('GPU acceleration not available - using CPU instead (slower but still works)', 5000);
+
+                    // Verify CPU backend works by running a small test
+                    const testTensor = tf.tensor2d([[1, 2], [3, 4]]);
+                    await testTensor.square().data();
+                    testTensor.dispose();
+
+                    return true; // CPU is working, so return true
+                } catch (cpuError) {
+                    console.error('CPU backend also failed:', cpuError);
+                    trainingStatus.textContent = 'TensorFlow not working - using basic AI';
+                    gpuValue.textContent = 'Not Available';
+                    gpuValue.style.color = '#f44336'; // Red
+
+                    // Show a user-friendly message
+                    showTooltip('TensorFlow not working - falling back to basic AI', 5000);
+
+                    // Force AI level to basic if deep learning is selected
+                    if (aiLevel === 'deep') {
+                        aiLevel = 'advanced';
+                        aiLevelSelect.value = 'advanced';
+                    }
+
+                    return false;
+                }
             } catch (e) {
                 console.error('Error setting TensorFlow.js backend:', e);
                 trainingStatus.textContent = 'TensorFlow initialization error';
@@ -3412,9 +3447,26 @@
             nextDirection = directions[chosenAction] || { x: 1, y: 0 }; // Default to right if something goes wrong
         }
 
-        // Deep learning AI decision making
+        // Deep learning AI decision making with robust error handling
         async function makeDeepAIDecision() {
             try {
+                // First check if TensorFlow is available
+                if (!tf) {
+                    console.error('TensorFlow.js not available');
+                    showTooltip('TensorFlow not available - using basic AI instead', 3000);
+                    makeBasicAIDecision();
+                    return;
+                }
+
+                // Check if we're using the correct backend
+                const currentBackend = tf.getBackend();
+                if (!currentBackend) {
+                    console.error('No TensorFlow backend available');
+                    showTooltip('TensorFlow backend not available - using basic AI', 3000);
+                    makeBasicAIDecision();
+                    return;
+                }
+
                 // If model not initialized, try to load it or create a new one
                 if (!model) {
                     try {
@@ -3433,9 +3485,18 @@
                         window.usingSavedModel = true; // Set flag to indicate we're using a saved model
                         console.log('Loaded and compiled saved model in makeDeepAIDecision');
                     } catch (err) {
-                        // If loading fails, create a new model
-                        console.log('Creating new model in makeDeepAIDecision:', err);
-                        model = await createModel();
+                        console.log('Loading saved model failed, creating new model:', err);
+                        try {
+                            model = await createModel();
+                            if (!model) {
+                                throw new Error('Failed to create model');
+                            }
+                        } catch (modelError) {
+                            console.error('Failed to create model:', modelError);
+                            showTooltip('Failed to create AI model - using basic AI instead', 3000);
+                            makeBasicAIDecision();
+                            return;
+                        }
                     }
                 }
 
@@ -3444,17 +3505,40 @@
                 // Get current state
                 const state = getDeepState(head);
 
-                // Convert state to tensor
+                // Convert state to tensor with robust error handling
                 let stateTensor, prediction, predictionArray;
                 try {
-                    stateTensor = tf.tensor2d([state]);
+                    // Create tensor with error checking
+                    try {
+                        stateTensor = tf.tensor2d([state]);
+                    } catch (tensorCreateError) {
+                        console.error('Failed to create tensor:', tensorCreateError);
+                        throw new Error('Tensor creation failed');
+                    }
 
-                    // Get action predictions from model
-                    prediction = model.predict(stateTensor);
-                    predictionArray = await prediction.array();
+                    // Get action predictions from model with error checking
+                    try {
+                        prediction = model.predict(stateTensor);
+                    } catch (predictError) {
+                        console.error('Model prediction failed:', predictError);
+                        if (stateTensor) stateTensor.dispose();
+                        throw new Error('Model prediction failed');
+                    }
+
+                    // Convert prediction to array with error checking
+                    try {
+                        predictionArray = await prediction.array();
+                    } catch (arrayError) {
+                        console.error('Failed to convert prediction to array:', arrayError);
+                        if (stateTensor) stateTensor.dispose();
+                        if (prediction) prediction.dispose();
+                        throw new Error('Prediction array conversion failed');
+                    }
                 } catch (tensorError) {
                     console.error('Error during tensor operations:', tensorError);
-                    // Fall back to random action
+                    // Show user-friendly message
+                    showTooltip('AI model error - using basic AI instead', 3000);
+                    // Fall back to basic AI
                     makeBasicAIDecision();
                     return;
                 }
@@ -3513,16 +3597,44 @@
                 lastState = state;
                 lastAction = actionIndex;
 
-                // Clean up tensors
-                if (stateTensor) stateTensor.dispose();
-                if (prediction) prediction.dispose();
+                // Clean up tensors to prevent memory leaks
+                try {
+                    if (stateTensor) stateTensor.dispose();
+                    if (prediction) prediction.dispose();
+                } catch (disposeError) {
+                    console.error('Error disposing tensors:', disposeError);
+                }
 
                 // Clear path visualization
                 currentPath = [];
+
+                // Periodically clean up unused tensors to prevent memory leaks
+                try {
+                    if (Math.random() < 0.1) { // 10% chance to run garbage collection
+                        tf.tidy(() => {}); // Run garbage collection
+                        console.log('Performed TensorFlow memory cleanup');
+                    }
+                } catch (gcError) {
+                    console.error('Error during TensorFlow garbage collection:', gcError);
+                }
             } catch (error) {
                 console.error('Deep AI decision error:', error);
+                // Show user-friendly message
+                showTooltip('Deep AI error - using basic AI instead', 3000);
                 // Fall back to basic AI if deep learning fails
                 makeBasicAIDecision();
+
+                // If we get repeated errors, switch to basic AI mode
+                if (!window.deepAIErrorCount) window.deepAIErrorCount = 0;
+                window.deepAIErrorCount++;
+
+                if (window.deepAIErrorCount > 5) {
+                    console.error('Too many deep AI errors, switching to basic AI mode');
+                    showTooltip('Switching to basic AI due to repeated errors', 3000);
+                    aiLevel = 'advanced';
+                    aiLevelSelect.value = 'advanced';
+                    window.deepAIErrorCount = 0;
+                }
             }
         }
 
