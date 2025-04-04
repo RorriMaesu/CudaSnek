@@ -8,24 +8,9 @@
     <style>
         canvas { transform: translateZ(0); } /* Force GPU acceleration */
     </style>
-    <!-- TensorFlow.js with error handling -->
-    <script>
-        // Define a global flag to track TensorFlow.js loading status
-        window.tfLoadingStatus = 'loading';
-
-        // Handle TensorFlow.js loading errors
-        function handleTfError(error) {
-            console.error('Error loading TensorFlow.js:', error);
-            window.tfLoadingStatus = 'error';
-            // We'll handle this in the game code
-        }
-    </script>
-    <!-- TensorFlow.js CPU backend as primary (more reliable) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-cpu@3.18.0/dist/tf-backend-cpu.min.js" onerror="handleTfError(event)"></script>
-    <!-- TensorFlow.js core -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js" onerror="handleTfError(event)" onload="window.tfLoadingStatus = 'loaded'"></script>
-    <!-- TensorFlow.js WebGL backend (optional) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.18.0/dist/tf-backend-webgl.min.js" onerror="console.warn('WebGL backend failed to load, using CPU only')"></script>
+    <!-- Simplified Deep AI Implementation (no TensorFlow dependency) -->
+    <script src="simplified-deep-ai.js"></script>
+    <script src="deep-ai-function.js"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Animate.css for animations -->
@@ -1260,31 +1245,25 @@
         let turboMode = false; // Flag for headless turbo training
         let parallelWorkers = 4; // Number of parallel simulations for turbo mode
 
-        // Initialize TensorFlow.js with GPU support and robust fallback
+        // Initialize simplified deep AI (no TensorFlow dependency)
         async function initializeTensorFlow() {
-            // Check if TensorFlow.js loaded successfully
-            if (window.tfLoadingStatus === 'error' || !tf) {
-                console.error('TensorFlow.js not loaded properly');
-                showTooltip('TensorFlow.js not loaded - using basic AI instead', 3000);
-                return false;
-            }
-
-            // Wait for loading to complete if still in progress
-            if (window.tfLoadingStatus === 'loading') {
-                console.log('Waiting for TensorFlow.js to finish loading...');
-                // Wait up to 2 seconds for loading to complete
-                for (let i = 0; i < 20; i++) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    if (window.tfLoadingStatus === 'loaded') {
-                        console.log('TensorFlow.js finished loading');
-                        break;
-                    }
-                    if (window.tfLoadingStatus === 'error' || !tf) {
-                        console.error('TensorFlow.js loading failed during wait');
-                        showTooltip('TensorFlow.js loading failed - using basic AI instead', 3000);
-                        return false;
+            try {
+                // Initialize the simplified deep AI if not already done
+                if (!window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                    // Try to load saved model
+                    const loaded = window.simplifiedDeepAI.loadModel();
+                    if (loaded) {
+                        console.log('Loaded simplified deep AI model from localStorage');
+                    } else {
+                        console.log('Created new simplified deep AI model');
                     }
                 }
+                return true;
+            } catch (error) {
+                console.error('Error initializing simplified deep AI:', error);
+                showTooltip('Error initializing AI - using basic AI instead', 3000);
+                return false;
             }
 
             // Force TensorFlow.js to initialize immediately
@@ -1436,68 +1415,47 @@
             }
         }
 
-        // Create neural network model for deep learning
+        // Create simplified neural network model for deep learning (no TensorFlow dependency)
         async function createModel() {
-            // Initialize TensorFlow with GPU support
-            await initializeTensorFlow();
-
-            // Set flags to indicate we're using a new model, not a saved one
-            window.usingSavedModel = false;
-            window.modelCompiled = false;
-
-            // Create the model
-            let model;
-
             try {
-                console.log('Creating neural network model...');
-                model = tf.sequential();
+                // Initialize the simplified deep AI if not already done
+                if (!window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                    // Try to load saved model
+                    const loaded = window.simplifiedDeepAI.loadModel();
+                    if (loaded) {
+                        console.log('Loaded simplified deep AI model from localStorage');
+                    } else {
+                        console.log('Created new simplified deep AI model');
+                    }
+                }
 
-                // Input layer: 13 inputs (state representation)
-                model.add(tf.layers.dense({
-                    units: 64,
-                    activation: 'relu',
-                    inputShape: [13]
-                }));
-
-                // Hidden layer
-                model.add(tf.layers.dense({
-                    units: 32,
-                    activation: 'relu'
-                }));
-
-                // Output layer: 4 outputs (one for each action)
-                model.add(tf.layers.dense({
-                    units: 4,
-                    activation: 'linear'
-                }));
-
-                // Compile the model
-                model.compile({
-                    optimizer: tf.train.adam(0.001),
-                    loss: 'meanSquaredError'
-                });
-
-                // Set flag to indicate model is compiled
-                window.modelCompiled = true;
-
-                console.log('Neural network model created and compiled successfully');
-
-                // Test the model with a dummy input to ensure it works
-                const dummyInput = tf.ones([1, 13]);
-                const dummyOutput = model.predict(dummyInput);
-                await dummyOutput.data(); // Force execution
-                dummyInput.dispose();
-                dummyOutput.dispose();
-
-                console.log('Model test successful');
-                return model;
+                // Create a dummy model interface that matches the TensorFlow.js model API
+                return {
+                    predict: () => ({
+                        array: async () => [[0.25, 0.25, 0.25, 0.25]],
+                        data: async () => [0.25, 0.25, 0.25, 0.25],
+                        dispose: () => {}
+                    }),
+                    fit: async () => ({ history: { loss: [1] } }),
+                    save: async () => {
+                        // Save the simplified model instead
+                        window.simplifiedDeepAI.saveModel();
+                        return {};
+                    },
+                    compile: () => {}
+                };
             } catch (error) {
-                console.error('Error creating neural network model:', error);
+                console.error('Error creating simplified model:', error);
                 trainingStatus.textContent = 'Error creating model - using fallback';
 
                 // Create a dummy model that won't crash
                 return {
-                    predict: (input) => tf.tensor2d([[0.25, 0.25, 0.25, 0.25]]),
+                    predict: () => ({
+                        array: async () => [[0.25, 0.25, 0.25, 0.25]],
+                        data: async () => [0.25, 0.25, 0.25, 0.25],
+                        dispose: () => {}
+                    }),
                     fit: async () => ({ history: { loss: [1] } }),
                     save: async () => ({}),
                     compile: () => {}
@@ -3518,220 +3476,85 @@
             nextDirection = directions[chosenAction] || { x: 1, y: 0 }; // Default to right if something goes wrong
         }
 
-        // Deep learning AI decision making with robust error handling
+        // Deep learning AI decision making with simplified implementation (no TensorFlow dependency)
         async function makeDeepAIDecision() {
             try {
-                // First check if TensorFlow is available
-                if (!tf) {
-                    console.error('TensorFlow.js not available');
-                    showTooltip('TensorFlow not available - using basic AI instead', 3000);
-                    makeBasicAIDecision();
-                    return;
-                }
-
-                // Check if we're using the correct backend
-                let currentBackend;
-                try {
-                    currentBackend = tf.getBackend();
-                    if (!currentBackend) {
-                        throw new Error('No TensorFlow backend available');
-                    }
-
-                    // Test if the backend actually works (check for whereImpl error)
-                    try {
-                        const testTensor = tf.tensor1d([1, 2, 3]);
-                        await testTensor.data();
-                        testTensor.dispose();
-                    } catch (testError) {
-                        if (testError.message && testError.message.includes('whereImpl')) {
-                            console.error('Backend whereImpl error:', testError);
-                            throw new Error('TensorFlow backend not working properly');
-                        }
-                    }
-                } catch (backendError) {
-                    console.error('TensorFlow backend error:', backendError);
-                    showTooltip('TensorFlow backend not available - using basic AI', 3000);
-
-                    // Try to force switch to advanced AI mode
-                    if (aiLevel === 'deep') {
-                        console.log('Automatically switching to advanced AI mode due to TensorFlow backend issues');
-                        aiLevel = 'advanced';
-                        aiLevelSelect.value = 'advanced';
-                        updateAIStatus();
-                    }
-
-                    makeBasicAIDecision();
-                    return;
-                }
-
-                // If model not initialized, try to load it or create a new one
-                if (!model) {
-                    try {
-                        // Try to load saved model first
-                        model = await tf.loadLayersModel('indexeddb://snake-ai-model');
-
-                        // Compile the loaded model - this is necessary for training
-                        model.compile({
-                            optimizer: tf.train.adam(0.001),
-                            loss: 'meanSquaredError'
-                        });
-
-                        // Set flag to indicate model is compiled
-                        window.modelCompiled = true;
-
-                        window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                        console.log('Loaded and compiled saved model in makeDeepAIDecision');
-                    } catch (err) {
-                        console.log('Loading saved model failed, creating new model:', err);
-                        try {
-                            model = await createModel();
-                            if (!model) {
-                                throw new Error('Failed to create model');
-                            }
-                        } catch (modelError) {
-                            console.error('Failed to create model:', modelError);
-                            showTooltip('Failed to create AI model - using basic AI instead', 3000);
-                            makeBasicAIDecision();
-                            return;
-                        }
-                    }
+                // Initialize the simplified deep AI if not already done
+                if (!window.simplifiedDeepAI) {
+                    window.simplifiedDeepAI = new SimplifiedDeepAI(gridWidth, gridHeight);
+                    // Try to load saved model
+                    window.simplifiedDeepAI.loadModel();
                 }
 
                 const head = snake[0];
 
                 // Get current state
-                const state = getDeepState(head);
+                const state = getState(head);
 
-                // Convert state to tensor with robust error handling
-                let stateTensor, prediction, predictionArray;
-                try {
-                    // Create tensor with error checking
-                    try {
-                        stateTensor = tf.tensor2d([state]);
-                    } catch (tensorCreateError) {
-                        console.error('Failed to create tensor:', tensorCreateError);
-                        throw new Error('Tensor creation failed');
-                    }
+                // Add head and food positions to state for learning
+                state.headX = head.x;
+                state.headY = head.y;
+                state.foodX = food.x;
+                state.foodY = food.y;
 
-                    // Get action predictions from model with error checking
-                    try {
-                        prediction = model.predict(stateTensor);
-                    } catch (predictError) {
-                        console.error('Model prediction failed:', predictError);
-                        if (stateTensor) stateTensor.dispose();
-                        throw new Error('Model prediction failed');
-                    }
+                // Get action from simplified deep AI
+                const chosenAction = window.simplifiedDeepAI.getAction(state, direction, checkCollision);
 
-                    // Convert prediction to array with error checking
-                    try {
-                        predictionArray = await prediction.array();
-                    } catch (arrayError) {
-                        console.error('Failed to convert prediction to array:', arrayError);
-                        if (stateTensor) stateTensor.dispose();
-                        if (prediction) prediction.dispose();
-                        throw new Error('Prediction array conversion failed');
-                    }
-                } catch (tensorError) {
-                    console.error('Error during tensor operations:', tensorError);
-                    // Show user-friendly message
-                    showTooltip('AI model error - using basic AI instead', 3000);
-                    // Fall back to basic AI
-                    makeBasicAIDecision();
-                    return;
+                // Set the direction based on the chosen action
+                switch (chosenAction) {
+                    case 'up':
+                        if (direction !== 'down') { // Prevent 180-degree turns
+                            direction = 'up';
+                        } else {
+                            // If trying to go in the opposite direction, use basic AI
+                            makeBasicAIDecision();
+                            return;
+                        }
+                        break;
+                    case 'right':
+                        if (direction !== 'left') {
+                            direction = 'right';
+                        } else {
+                            makeBasicAIDecision();
+                            return;
+                        }
+                        break;
+                    case 'down':
+                        if (direction !== 'up') {
+                            direction = 'down';
+                        } else {
+                            makeBasicAIDecision();
+                            return;
+                        }
+                        break;
+                    case 'left':
+                        if (direction !== 'right') {
+                            direction = 'left';
+                        } else {
+                            makeBasicAIDecision();
+                            return;
+                        }
+                        break;
+                    default:
+                        // If no valid action, use basic AI
+                        makeBasicAIDecision();
+                        return;
+                }
+
+                // Periodically save the model
+                if (Math.random() < 0.01) { // 1% chance to save
+                    window.simplifiedDeepAI.saveModel();
                 }
 
                 // Get action with highest Q-value
-                let actionIndex;
-
-                // Use epsilon-greedy policy for exploration
-                if (Math.random() < explorationRate) {
-                    // Random action
-                    actionIndex = Math.floor(Math.random() * 4);
-                } else {
-                    // Best action from model
-                    actionIndex = predictionArray[0].indexOf(Math.max(...predictionArray[0]));
-                }
-
-                // Convert action index to direction
-                const actionDirections = [
-                    { x: 0, y: -1 }, // Up
-                    { x: 1, y: 0 },  // Right
-                    { x: 0, y: 1 },  // Down
-                    { x: -1, y: 0 }  // Left
-                ];
-
-                const newDirection = actionDirections[actionIndex];
-
-                // Don't allow 180-degree turns
-                const oppositeDirection = { x: -direction.x, y: -direction.y };
-                if (newDirection.x === oppositeDirection.x && newDirection.y === oppositeDirection.y) {
-                    // If trying to go backwards, choose a different direction
-                    const validDirections = actionDirections.filter(dir =>
-                        !(dir.x === oppositeDirection.x && dir.y === oppositeDirection.y)
-                    );
-
-                    // Find best valid direction
-                    let bestDir = validDirections[0];
-                    let bestValue = -Infinity;
-
-                    for (let i = 0; i < validDirections.length; i++) {
-                        const dir = validDirections[i];
-                        const dirIndex = actionDirections.findIndex(d => d.x === dir.x && d.y === dir.y);
-                        const value = predictionArray[0][dirIndex];
-
-                        if (value > bestValue) {
-                            bestValue = value;
-                            bestDir = dir;
-                        }
-                    }
-
-                    nextDirection = bestDir;
-                } else {
-                    nextDirection = newDirection;
-                }
-
-                // Store state and action for learning
-                lastState = state;
-                lastAction = actionIndex;
-
-                // Clean up tensors to prevent memory leaks
-                try {
-                    if (stateTensor) stateTensor.dispose();
-                    if (prediction) prediction.dispose();
-                } catch (disposeError) {
-                    console.error('Error disposing tensors:', disposeError);
-                }
-
                 // Clear path visualization
                 currentPath = [];
-
-                // Periodically clean up unused tensors to prevent memory leaks
-                try {
-                    if (Math.random() < 0.1) { // 10% chance to run garbage collection
-                        tf.tidy(() => {}); // Run garbage collection
-                        console.log('Performed TensorFlow memory cleanup');
-                    }
-                } catch (gcError) {
-                    console.error('Error during TensorFlow garbage collection:', gcError);
-                }
             } catch (error) {
                 console.error('Deep AI decision error:', error);
                 // Show user-friendly message
                 showTooltip('Deep AI error - using basic AI instead', 3000);
                 // Fall back to basic AI if deep learning fails
                 makeBasicAIDecision();
-
-                // If we get repeated errors, switch to basic AI mode
-                if (!window.deepAIErrorCount) window.deepAIErrorCount = 0;
-                window.deepAIErrorCount++;
-
-                if (window.deepAIErrorCount > 5) {
-                    console.error('Too many deep AI errors, switching to basic AI mode');
-                    showTooltip('Switching to basic AI due to repeated errors', 3000);
-                    aiLevel = 'advanced';
-                    aiLevelSelect.value = 'advanced';
-                    window.deepAIErrorCount = 0;
-                }
             }
         }
 
