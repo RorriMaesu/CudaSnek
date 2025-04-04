@@ -35,28 +35,40 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow-x: hidden;
+            overflow: hidden; /* Prevent scrolling on desktop */
         }
 
         body {
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: center; /* Center content vertically on desktop */
             align-items: center;
-            min-height: 100vh;
+            height: 100vh; /* Use exact viewport height on desktop */
             background: linear-gradient(135deg, var(--bg-dark), var(--bg-darker));
             font-family: 'Poppins', sans-serif;
             color: var(--text-light);
             position: relative;
-            padding: 10px 5px;
             box-sizing: border-box;
+        }
+
+        h1 {
+            margin: 5px 0 10px;
+            font-size: 32px;
+            text-align: center;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0; /* Prevent title from shrinking */
         }
 
         /* Mobile styles */
         .mobile-device {
             /* Class added to body when on mobile */
-            overflow-y: auto;
+            overflow-y: auto; /* Allow scrolling on mobile */
+            overflow-x: hidden;
             padding: 10px 0;
+            justify-content: flex-start; /* Start from top on mobile */
+            height: auto; /* Auto height on mobile */
+            min-height: 100vh;
         }
 
         .mobile-device .game-container {
@@ -139,6 +151,27 @@
         }
 
         /* Media queries for responsive design */
+        /* Desktop-specific styles to prevent scrolling */
+        @media (min-width: 1201px) {
+            body {
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            h1 {
+                margin: 0 0 10px;
+                font-size: 32px;
+            }
+
+            .game-container {
+                margin: 5px auto;
+            }
+
+            .controls, .stats, .training-controls {
+                margin: 5px auto;
+            }
+        }
+
         @media (max-width: 1200px) {
             .training-controls {
                 flex-wrap: wrap;
@@ -347,13 +380,14 @@
 
         .game-container {
             position: relative;
-            margin: 10px auto 20px;
+            margin: 10px auto;
             display: flex;
             justify-content: center;
             align-items: center;
             width: min(500px, 95vw);
             height: min(500px, 95vw);
             max-width: 100%;
+            flex-shrink: 0; /* Prevent container from shrinking */
         }
 
         canvas {
@@ -371,11 +405,12 @@
         .controls {
             display: flex;
             gap: 10px;
-            margin: 0 auto 15px;
+            margin: 10px auto 5px;
             flex-wrap: wrap;
             justify-content: center;
             width: min(500px, 95vw);
             max-width: 100%;
+            flex-shrink: 0; /* Prevent controls from shrinking */
         }
 
         button {
@@ -412,7 +447,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin: 0 auto 15px;
+            margin: 5px auto;
             background: rgba(255, 255, 255, 0.1);
             padding: 10px;
             border-radius: 8px;
@@ -421,6 +456,7 @@
             width: min(500px, 95vw);
             max-width: 100%;
             box-sizing: border-box;
+            flex-shrink: 0; /* Prevent training controls from shrinking */
         }
 
         .training-controls input {
@@ -474,11 +510,12 @@
         .stats {
             display: flex;
             gap: 8px;
-            margin: 0 auto 15px;
+            margin: 5px auto;
             flex-wrap: wrap;
             justify-content: center;
             width: min(500px, 95vw);
             max-width: 100%;
+            flex-shrink: 0; /* Prevent stats from shrinking */
         }
 
         .stat-box {
@@ -4002,7 +4039,11 @@
 
             // Calculate available space
             const availableWidth = Math.min(window.innerWidth * 0.95, 500);
-            const availableHeight = window.innerHeight - 150; // Reserve space for controls and header
+
+            // For desktop, calculate height more precisely to avoid scrolling
+            // Reserve space for title, controls, stats, and margins
+            const reservedSpace = isMobileDevice() ? 150 : 200;
+            const availableHeight = window.innerHeight - reservedSpace;
 
             // Get the optimal size that fits within the available space
             let size;
@@ -4018,7 +4059,7 @@
                 // Tablets and small desktops
                 size = Math.min(500, window.innerWidth * 0.95, availableHeight);
             } else {
-                // Large desktops
+                // Large desktops - ensure it fits without scrolling
                 size = Math.min(500, availableHeight);
             }
 
