@@ -347,6 +347,25 @@
             margin-right: 5px;
         }
 
+        .instruction-tip {
+            background-color: rgba(74, 93, 231, 0.1);
+            border-left: 3px solid #4a5de7;
+            padding: 8px 12px;
+            margin: 10px 0;
+            font-size: 13px;
+            line-height: 1.4;
+            border-radius: 4px;
+        }
+
+        .instruction-tip i {
+            color: #ffcc00;
+            margin-right: 5px;
+        }
+
+        .instruction-tip strong {
+            color: #4a5de7;
+        }
+
         .tooltip {
             position: absolute;
             background: rgba(74, 93, 231, 0.9);
@@ -3189,7 +3208,14 @@
                                 <li><i class="fas fa-play"></i> <strong>Resume</strong> - Start/resume game</li>
                                 <li><i class="fas fa-robot"></i> <strong>Toggle AI</strong> - AI on/off</li>
                                 <li><i class="fas fa-redo"></i> <strong>Reset</strong> - New game</li>
-                                <li><i class="fas fa-graduation-cap"></i> <strong>Mode</strong> - Human/AI selection</li>
+                            </ul>
+
+                            <h3><i class="fas fa-graduation-cap"></i> Mode Selection</h3>
+                            <ul>
+                                <li><i class="fas fa-user"></i> <strong>Human Player</strong> - Play yourself with arrow keys</li>
+                                <li><i class="fas fa-robot"></i> <strong>Basic/Advanced</strong> - Simple AI algorithms</li>
+                                <li><i class="fas fa-brain"></i> <strong>Q-Learning</strong> - Learns from experience</li>
+                                <li><i class="fas fa-microchip"></i> <strong>Deep Learning</strong> - Uses GPU for neural network</li>
                             </ul>
 
                             <h3><i class="fas fa-keyboard"></i> Human Controls</h3>
@@ -3201,23 +3227,29 @@
                         </div>
 
                         <div style="flex: 1; min-width: 180px;">
-                            <h3><i class="fas fa-cogs"></i> Training Options</h3>
-                            <ul>
-                                <li><i class="fas fa-microchip"></i> <strong>Train on GPU</strong> - Use your GPU</li>
-                                <li><i class="fas fa-tachometer-alt"></i> <strong>Episodes</strong> - Games to train</li>
-                                <li><i class="fas fa-bolt"></i> <strong>Turbo</strong> - Fast training</li>
-                                <li><i class="fas fa-save"></i> <strong>Save/Load</strong> - Store models</li>
-                                <li><i class="fas fa-file-export"></i> <strong>Export/Import</strong> - Share models</li>
-                            </ul>
+                            <h3><i class="fas fa-cogs"></i> Training Guide</h3>
+                            <ol style="padding-left: 15px;">
+                                <li>Select <strong>Deep Learning</strong> mode</li>
+                                <li>Set <strong>Episodes</strong> (1000+ recommended)</li>
+                                <li>Click <strong>Train on GPU</strong> button</li>
+                                <li>Wait for training to complete</li>
+                                <li>Click <strong>Save Model</strong> to store progress</li>
+                                <li>Toggle AI off/on to test performance</li>
+                            </ol>
 
-                            <h3><i class="fas fa-chart-line"></i> Performance</h3>
+                            <h3><i class="fas fa-save"></i> Model Management</h3>
                             <ul>
-                                <li><i class="fas fa-microchip"></i> <strong>GPU</strong> - NVIDIA GPU usage</li>
-                                <li><i class="fas fa-brain"></i> <strong>Avg. Score</strong> - Training average</li>
-                                <li><i class="fas fa-trophy"></i> <strong>Max Score</strong> - Best score</li>
-                                <li><i class="fas fa-chart-bar"></i> <strong>Speed</strong> - Episodes/second</li>
+                                <li><i class="fas fa-save"></i> <strong>Save Model</strong> - Store in browser</li>
+                                <li><i class="fas fa-folder-open"></i> <strong>Load Model</strong> - Retrieve saved model</li>
+                                <li><i class="fas fa-file-export"></i> <strong>Export</strong> - Download as file</li>
+                                <li><i class="fas fa-file-import"></i> <strong>Import</strong> - Load from file</li>
+                                <li><i class="fas fa-info-circle"></i> <strong>Status</strong> - Shows 💾 when using saved model</li>
                             </ul>
                         </div>
+                    </div>
+
+                    <div class="instruction-tip">
+                        <i class="fas fa-lightbulb"></i> <strong>Training Tip:</strong> After training, the AI will use what it learned. Toggle AI off/on to see immediate improvement. The status will show <strong>💾 SAVED</strong> when using trained data.
                     </div>
 
                     <p class="instruction-note"><i class="fas fa-keyboard"></i> Press <strong>ESC</strong> key to close this window</p>
