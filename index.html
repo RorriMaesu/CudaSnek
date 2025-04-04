@@ -1509,6 +1509,12 @@
         // Reset the game
         function resetGame() {
             pauseGame();
+
+            // Clear any AI position history to prevent loop detection from previous games
+            if (window.advancedAIPositionHistory) {
+                window.advancedAIPositionHistory = [];
+            }
+
             initGame();
         }
 
@@ -2116,7 +2122,7 @@
         }
 
         // Simulate a move to see if it leads to a dead end
-        function simulateMove(moveDir) {
+        function simulateMove(moveDir, loopDetected = false) {
             const head = snake[0];
             const newHead = { x: head.x + moveDir.x, y: head.y + moveDir.y };
 
@@ -2147,7 +2153,19 @@
             const distanceToFood = Math.abs(newHead.x - food.x) + Math.abs(newHead.y - food.y);
 
             // Calculate score based on available space and distance to food
-            const score = availableSpace - distanceToFood * 0.5;
+            let score;
+
+            if (loopDetected) {
+                // When a loop is detected, prioritize moves that maximize available space
+                // and don't worry as much about distance to food
+                score = availableSpace * 2 - distanceToFood * 0.1;
+            } else {
+                // Normal scoring
+                score = availableSpace - distanceToFood * 0.5;
+            }
+
+            // Add a small random factor to break ties and avoid repetitive patterns
+            score += Math.random() * 0.1;
 
             return { valid: true, score };
         }
@@ -2265,6 +2283,34 @@
         function makeAdvancedAIDecision() {
             const head = snake[0];
 
+            // Create a key for the current position for loop detection
+            const posKey = `${head.x},${head.y}`;
+
+            // Track position history for loop detection (if not already initialized)
+            if (!window.advancedAIPositionHistory) {
+                window.advancedAIPositionHistory = [];
+            }
+
+            // Add current position to history
+            window.advancedAIPositionHistory.push(posKey);
+
+            // Keep history at a reasonable size
+            if (window.advancedAIPositionHistory.length > 100) {
+                window.advancedAIPositionHistory.shift();
+            }
+
+            // Check for loops (same position visited multiple times recently)
+            const recentPositions = window.advancedAIPositionHistory.slice(-20); // Look at last 20 moves
+            const positionCounts = {};
+            let loopDetected = false;
+
+            recentPositions.forEach(pos => {
+                positionCounts[pos] = (positionCounts[pos] || 0) + 1;
+                if (positionCounts[pos] > 2) { // If we've been in the same spot 3+ times recently
+                    loopDetected = true;
+                }
+            });
+
             // Check all four directions
             const directions = [
                 { x: 0, y: -1, name: 'up' },    // Up
@@ -2281,7 +2327,7 @@
             currentPath = path; // Store path for visualization
 
             // If we found a path to food and it's not empty
-            if (path.length > 0) {
+            if (path.length > 0 && !loopDetected) {
                 // Get the first step in the path
                 const nextStep = path[0];
 
@@ -2302,7 +2348,7 @@
                 }
             }
 
-            // If A* didn't find a good path, use fallback strategy
+            // If A* didn't find a good path or we detected a loop, use fallback strategy
             const moveOptions = [];
 
             // Evaluate each possible move
@@ -2313,12 +2359,31 @@
                 }
 
                 // Simulate this move
-                const simulation = simulateMove(dir);
+                const simulation = simulateMove(dir, loopDetected);
+
+                // Get the new position if we were to move in this direction
+                const newPos = { x: head.x + dir.x, y: head.y + dir.y };
+                const newPosKey = `${newPos.x},${newPos.y}`;
+
+                // Check if this move would lead us to a recently visited position
+                const visitCount = positionCounts[newPosKey] || 0;
+
+                // Penalize moves that lead to recently visited positions
+                let adjustedScore = simulation.score;
+                if (visitCount > 0) {
+                    adjustedScore -= visitCount * 5; // Penalize based on how often we've been there
+                }
+
+                // If we detected a loop, prioritize breaking out of it
+                if (loopDetected) {
+                    // Prioritize moves that lead to less visited areas
+                    adjustedScore = simulation.valid ? (100 - (visitCount * 20)) : -Infinity;
+                }
 
                 if (simulation.valid) {
                     moveOptions.push({
                         direction: dir,
-                        score: simulation.score
+                        score: adjustedScore
                     });
                 }
             }
