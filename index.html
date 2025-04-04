@@ -765,6 +765,9 @@
             // Initialize TensorFlow with GPU support
             await initializeTensorFlow();
 
+            // Set flag to indicate we're using a new model, not a saved one
+            window.usingSavedModel = false;
+
             // Create the model
             let model;
 
@@ -2569,9 +2572,18 @@
         // Deep learning AI decision making
         async function makeDeepAIDecision() {
             try {
-                // If model not initialized, create it
+                // If model not initialized, try to load it or create a new one
                 if (!model) {
-                    model = createModel();
+                    try {
+                        // Try to load saved model first
+                        model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+                        window.usingSavedModel = true; // Set flag to indicate we're using a saved model
+                        console.log('Loaded saved model in makeDeepAIDecision');
+                    } catch (err) {
+                        // If loading fails, create a new model
+                        console.log('Creating new model in makeDeepAIDecision:', err);
+                        model = await createModel();
+                    }
                 }
 
                 const head = snake[0];
@@ -2751,7 +2763,8 @@
                     aiStatus.textContent = 'AI: Inactive';
                 } else if (aiLevel === 'deep') {
                     const backend = tf.getBackend() || 'cpu';
-                    aiStatus.textContent = `AI: Deep Learning (${backend.toUpperCase()}, Exp: ${Math.round(explorationRate * 100)}%, Mem: ${replayMemory.length})`;
+                    const modelStatus = window.usingSavedModel ? '💾 SAVED' : 'NEW';
+                    aiStatus.textContent = `AI: Deep Learning (${backend.toUpperCase()}, ${modelStatus}, Exp: ${Math.round(explorationRate * 100)}%, Mem: ${replayMemory.length})`;
                 } else if (aiLevel === 'learning') {
                     aiStatus.textContent = `AI: Q-Learning (Exp: ${Math.round(explorationRate * 100)}%, Games: ${gameCount})`;
                 } else if (aiLevel === 'advanced') {
@@ -2955,10 +2968,18 @@
             try {
                 // Save model to IndexedDB
                 await model.save('indexeddb://snake-ai-model');
+                window.usingSavedModel = true; // Set flag to indicate we're using a saved model
                 trainingStatus.textContent = 'Model saved successfully';
+
+                // Show visual feedback
+                showTooltip('Model saved successfully! 💾', 3000);
+
+                // Update AI status to show we're using a saved model
+                updateAIStatus();
             } catch (err) {
                 console.error('Error saving model:', err);
                 trainingStatus.textContent = 'Error saving model';
+                showTooltip('Error saving model', 3000);
             }
         });
 
@@ -2966,12 +2987,22 @@
             try {
                 // Load model from IndexedDB
                 model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+                window.usingSavedModel = true; // Set flag to indicate we're using a saved model
                 trainingStatus.textContent = 'Model loaded successfully';
+
+                // Update AI status to show we're using a saved model
+                updateAIStatus();
+
+                // Show visual feedback
+                showTooltip('Saved model loaded successfully! 💾', 3000);
             } catch (err) {
                 console.error('Error loading model:', err);
                 trainingStatus.textContent = 'Error loading model';
+                showTooltip('Error loading model - creating new one', 3000);
+
                 // Create a new model if loading fails
-                model = createModel();
+                model = await createModel();
+                window.usingSavedModel = false;
             }
         });
 
@@ -3078,9 +3109,19 @@
                 if (aiLevel === 'deep') {
                     trainingStatus.textContent = 'Initializing GPU detection...';
 
-                    // Create model and initialize GPU
+                    // Try to load saved model first, create new one if loading fails
                     if (!model) {
-                        model = await createModel();
+                        try {
+                            // Attempt to load model from IndexedDB
+                            model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+                            window.usingSavedModel = true; // Set flag to indicate we're using a saved model
+                            trainingStatus.textContent = 'Loaded saved model from browser storage';
+                            console.log('Successfully loaded saved model');
+                        } catch (err) {
+                            console.log('No saved model found, creating new model:', err);
+                            model = await createModel();
+                            trainingStatus.textContent = 'Created new model (no saved model found)';
+                        }
                     }
 
                     // Check GPU status
