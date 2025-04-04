@@ -65,15 +65,21 @@
             /* Class added to body when on mobile */
             overflow-y: auto; /* Allow scrolling on mobile */
             overflow-x: hidden;
-            padding: 10px 0;
+            padding: 5px 0;
             justify-content: flex-start; /* Start from top on mobile */
             height: auto; /* Auto height on mobile */
             min-height: 100vh;
         }
 
+        /* Ensure all content fits on mobile screens */
+        .mobile-device h1 {
+            font-size: 24px;
+            margin: 5px 0;
+        }
+
         .mobile-device .game-container {
-            transform: scale(0.9);
-            margin: 10px 0;
+            transform: scale(0.95);
+            margin: 5px auto;
         }
 
         .mobile-device .controls,
@@ -267,45 +273,63 @@
 
         @media (max-width: 480px) {
             body {
-                padding: 5px 0;
+                padding: 2px 0;
             }
 
             h1 {
-                font-size: 20px;
-                margin: 5px 0;
+                font-size: 18px;
+                margin: 3px 0;
             }
 
             #gameCanvas {
-                width: min(350px, 95vw);
-                height: min(350px, 95vw);
+                width: min(350px, 92vw);
+                height: min(350px, 92vw);
             }
 
             .controls button,
             .controls select {
-                padding: 6px 10px;
-                font-size: 13px;
+                padding: 5px 8px;
+                font-size: 12px;
                 margin: 2px;
             }
 
             .stat-box {
-                padding: 4px 8px;
+                padding: 3px 6px;
                 margin: 2px;
-                min-width: 60px;
-                font-size: 12px;
-            }
-
-            .stat-label {
+                min-width: 50px;
                 font-size: 11px;
             }
 
+            .stat-label {
+                font-size: 10px;
+            }
+
             .touch-controls {
-                bottom: 10px;
+                bottom: 5px;
+                gap: 10px;
             }
 
             .touch-btn {
-                width: 50px;
-                height: 50px;
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            /* Ensure game over screen fits */
+            .game-over {
+                padding: 15px;
+                width: 80%;
+                max-width: 280px;
+            }
+
+            .game-over h2 {
                 font-size: 20px;
+                margin: 5px 0;
+            }
+
+            .game-over button {
+                padding: 8px 15px;
+                margin-top: 10px;
             }
         }
 
@@ -2581,9 +2605,13 @@
                 finalScore.textContent = `Score: ${score}`;
                 gameOverScreen.style.display = 'flex';
 
-                // Show tooltip with restart instructions
+                // Show tooltip with restart instructions based on device
                 setTimeout(() => {
-                    showTooltip('Press R to restart or click Restart button', 3000);
+                    if (isMobileDevice()) {
+                        showTooltip('Tap the Play Again button to restart', 3000);
+                    } else {
+                        showTooltip('Press R to restart or click Play Again button', 3000);
+                    }
                 }, 1000);
             }
 
@@ -3518,7 +3546,11 @@
             if (isGameOver && e.key !== 'r' && e.key !== 'R') {
                 // Show a hint to restart if trying to move after game over
                 if (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-                    showTooltip('Game Over! Press R to restart', 2000);
+                    if (isMobileDevice()) {
+                        showTooltip('Game Over! Tap Play Again button to restart', 2000);
+                    } else {
+                        showTooltip('Game Over! Press R to restart', 2000);
+                    }
                 }
                 return;
             }
