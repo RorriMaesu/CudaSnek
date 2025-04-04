@@ -36,3 +36,7 @@ A self-playing Snake game that uses deep reinforcement learning with TensorFlow.
 - Experience replay for efficient learning
 
 Created by rorrimaesu
+
+## Support
+
+If you enjoy this project, you can [buy me a coffee](https://buymeacoffee.com/rorrimaesu) to support my work!
