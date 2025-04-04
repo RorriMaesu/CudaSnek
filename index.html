@@ -8,10 +8,9 @@
     <style>
         canvas { transform: translateZ(0); } /* Force GPU acceleration */
     </style>
-    <!-- AI Implementations -->
-    <script src="simplified-deep-ai.js"></script>
-    <script src="deep-ai-function.js"></script>
+    <!-- AI Implementation -->
     <script src="enhanced-deep-ai.js"></script>
+    <script src="deep-ai-function.js"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Animate.css for animations -->
@@ -3973,22 +3972,27 @@
         });
 
         saveModelBtn.addEventListener('click', async () => {
-            if (!model) {
-                alert('No model to save');
-                return;
-            }
-
             try {
-                // Save model to IndexedDB
-                await model.save('indexeddb://snake-ai-model');
-                window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                trainingStatus.textContent = 'Model saved successfully';
+                // Initialize the enhanced deep AI if not already done
+                if (!window.enhancedDeepAI) {
+                    window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
+                }
 
-                // Show visual feedback
-                showTooltip('Model saved successfully! 💾', 3000);
+                // Save model to localStorage
+                const saved = window.enhancedDeepAI.saveModel();
 
-                // Update AI status to show we're using a saved model
-                updateAIStatus();
+                if (saved) {
+                    trainingStatus.textContent = 'Model saved successfully';
+
+                    // Show visual feedback
+                    showTooltip('Model saved successfully! 💾', 3000);
+
+                    // Update AI status to show we're using a saved model
+                    updateAIStatus();
+                } else {
+                    trainingStatus.textContent = 'Error saving model';
+                    showTooltip('Error saving model', 3000);
+                }
             } catch (err) {
                 console.error('Error saving model:', err);
                 trainingStatus.textContent = 'Error saving model';
@@ -3998,52 +4002,52 @@
 
         loadModelBtn.addEventListener('click', async () => {
             try {
-                // Load model from IndexedDB
-                model = await tf.loadLayersModel('indexeddb://snake-ai-model');
+                // Initialize the enhanced deep AI if not already done
+                if (!window.enhancedDeepAI) {
+                    window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
+                }
 
-                // Compile the loaded model - this is necessary for training
-                model.compile({
-                    optimizer: tf.train.adam(0.001),
-                    loss: 'meanSquaredError'
-                });
+                // Load model from localStorage
+                const loaded = window.enhancedDeepAI.loadModel();
 
-                // Set flag to indicate model is compiled
-                window.modelCompiled = true;
+                if (loaded) {
+                    trainingStatus.textContent = 'Model loaded successfully';
 
-                window.usingSavedModel = true; // Set flag to indicate we're using a saved model
-                trainingStatus.textContent = 'Model loaded and compiled successfully';
+                    // Update AI status to show we're using a saved model
+                    updateAIStatus();
 
-                // Update AI status to show we're using a saved model
-                updateAIStatus();
-
-                // Show visual feedback
-                showTooltip('Saved model loaded successfully! 💾', 3000);
+                    // Show visual feedback
+                    showTooltip('Saved model loaded successfully! 💾', 3000);
+                } else {
+                    trainingStatus.textContent = 'No saved model found';
+                    showTooltip('No saved model found - using new model', 3000);
+                }
             } catch (err) {
                 console.error('Error loading model:', err);
                 trainingStatus.textContent = 'Error loading model';
                 showTooltip('Error loading model - creating new one', 3000);
-
-                // Create a new model if loading fails
-                model = await createModel();
-                window.usingSavedModel = false;
             }
         });
 
         // Export model to JSON file
         exportModelBtn.addEventListener('click', async () => {
-            if (!model) {
-                alert('No model to export');
-                return;
-            }
-
             try {
-                // Convert model to JSON format
-                const modelJSON = await model.save(tf.io.withSaveHandler(async modelArtifacts => {
-                    return modelArtifacts;
-                }));
+                // Initialize the enhanced deep AI if not already done
+                if (!window.enhancedDeepAI) {
+                    window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
+                    // Try to load saved model first
+                    window.enhancedDeepAI.loadModel();
+                }
+
+                // Get model data from localStorage
+                const modelData = localStorage.getItem('enhanced-deep-ai-model');
+                if (!modelData) {
+                    alert('No saved model to export');
+                    return;
+                }
 
                 // Create a download link
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(modelJSON));
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(modelData);
                 const downloadAnchorNode = document.createElement('a');
                 downloadAnchorNode.setAttribute("href", dataStr);
                 downloadAnchorNode.setAttribute("download", "snake-ai-model.json");
@@ -4080,11 +4084,30 @@
                     const reader = new FileReader();
                     reader.onload = async (e) => {
                         try {
-                            const modelJSON = JSON.parse(e.target.result);
+                            const modelData = e.target.result;
 
-                            // Load model from JSON
-                            model = await tf.loadLayersModel(tf.io.fromMemory(modelJSON));
-                            trainingStatus.textContent = 'Model imported successfully';
+                            // Initialize the enhanced deep AI if not already done
+                            if (!window.enhancedDeepAI) {
+                                window.enhancedDeepAI = new EnhancedDeepAI(gridWidth, gridHeight);
+                            }
+
+                            // Save the imported model to localStorage
+                            localStorage.setItem('enhanced-deep-ai-model', modelData);
+
+                            // Load the model into the enhanced deep AI
+                            const loaded = window.enhancedDeepAI.loadModel();
+
+                            if (loaded) {
+                                trainingStatus.textContent = 'Model imported successfully';
+
+                                // Update AI status to show we're using a saved model
+                                updateAIStatus();
+
+                                // Show visual feedback
+                                showTooltip('Model imported successfully!', 3000);
+                            } else {
+                                throw new Error('Failed to load imported model');
+                            }
                         } catch (err) {
                             console.error('Error parsing model JSON:', err);
                             trainingStatus.textContent = 'Error importing model';
